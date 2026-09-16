@@ -69,6 +69,11 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body
   font-size:1.15rem;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1;}
 .icon-btn:active{transform:scale(.9);}
 .icon-btn[hidden]{display:none;}
+.icon-btn.small{width:28px;height:28px;font-size:.85rem;}
+.icon-btn.spinning{animation:spin .6s linear;}
+@keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+.section-heading-row{display:flex;align-items:center;justify-content:center;gap:8px;margin:18px 0 8px;}
+.section-heading-row .section-heading{margin:0;}
 .scoreboard-strip{position:relative;z-index:1;flex:0 0 auto;display:flex;gap:8px;overflow-x:auto;padding:6px 18px 14px;-webkit-overflow-scrolling:touch;}
 .scoreboard-strip:empty{display:none;}
 .player-pill{flex:0 0 auto;display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);
@@ -402,7 +407,8 @@ function renderHomeContent(){
   html += '<div class="home-actions">' +
     '<button type="button" class="cta" data-action="go-create">🎉 Créer une partie</button>' +
   '</div>';
-  html += '<p class="section-heading" style="text-align:center;">Parties publiques</p>';
+  html += '<div class="section-heading-row"><p class="section-heading">Parties publiques</p>' +
+    '<button type="button" id="refresh-public-btn" class="icon-btn small" data-action="refresh-public-games" aria-label="Actualiser">🔄</button></div>';
   html += '<div id="public-games-list" class="public-games-list"><p class="muted" style="text-align:center;">Chargement…</p></div>';
   return html;
 }
@@ -420,6 +426,17 @@ function renderPublicGamesList(){
   if (!pins.length){ el.innerHTML = '<p class="muted" style="text-align:center;">Aucune partie publique pour l’instant.</p>'; return; }
   pins.sort(function(a,b){ return (all[b].createdAt||0) - (all[a].createdAt||0); });
   el.innerHTML = pins.map(function(pin){ return renderPublicGameRow(pin, all[pin]); }).join('');
+}
+function handleRefreshPublicGames(){
+  const btn = document.getElementById('refresh-public-btn');
+  if (btn) btn.classList.add('spinning');
+  db.ref('games').once('value').then(function(snap){
+    lastPublicSnapshot = snap.val() || {};
+    sweepInactiveGames(lastPublicSnapshot);
+    renderPublicGamesList();
+  }).catch(function(){ showToast('Erreur de rafraîchissement.'); }).then(function(){
+    if (btn) btn.classList.remove('spinning');
+  });
 }
 function sweepInactiveGames(all){
   const now = Date.now();
@@ -1012,6 +1029,7 @@ document.addEventListener('click', function(e){
   const action = btn.dataset.action;
   if (action === 'go-create') goCreate();
   else if (action === 'go-home'){ uiScreen = 'home'; attachHomeListener(); renderTop(); }
+  else if (action === 'refresh-public-games') handleRefreshPublicGames();
   else if (action === 'quick-join'){ draftPin = btn.dataset.pin; detachHomeListener(); uiScreen = 'join'; renderTop(); }
   else if (action === 'pick-emoji'){ draftEmoji = btn.dataset.emoji; refreshAvatarPicker(); }
   else if (action === 'pick-color'){ draftColor = btn.dataset.color; refreshAvatarPicker(); }
