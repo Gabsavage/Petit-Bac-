@@ -69,11 +69,6 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body
   font-size:1.15rem;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1;}
 .icon-btn:active{transform:scale(.9);}
 .icon-btn[hidden]{display:none;}
-.icon-btn.small{width:28px;height:28px;font-size:.85rem;}
-.icon-btn.spinning{animation:spin .6s linear;}
-@keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
-.section-heading-row{display:flex;align-items:center;justify-content:center;gap:8px;margin:18px 0 8px;}
-.section-heading-row .section-heading{margin:0;}
 .scoreboard-strip{position:relative;z-index:1;flex:0 0 auto;display:flex;gap:8px;overflow-x:auto;padding:6px 18px 14px;-webkit-overflow-scrolling:touch;}
 .scoreboard-strip:empty{display:none;}
 .player-pill{flex:0 0 auto;display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);
@@ -115,12 +110,6 @@ textarea.field{resize:vertical;font-size:.95rem;}
 .tagline{font-family:var(--font-display);font-size:1.2rem;margin:16px 0 4px;font-weight:700;}
 .rules-hint{color:var(--text-soft);font-size:.9rem;line-height:1.5;margin:0 auto 6px;max-width:38ch;}
 .home-actions{display:flex;flex-direction:column;gap:10px;margin:20px 0 8px;}
-.public-games-list{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
-.public-game-row{display:flex;justify-content:space-between;align-items:center;background:var(--surface);
-  border:1px solid var(--border);border-radius:14px;padding:12px 14px;font-family:var(--font-body);
-  font-size:.92rem;color:var(--text);cursor:pointer;text-align:left;width:100%;}
-.public-game-row:active{transform:scale(.98);}
-.pg-count{color:var(--text-soft);font-size:.78rem;font-family:var(--font-mono);}
 .join-hero{padding:14px 2px 4px;}
 .join-hero h2{font-family:var(--font-display);font-size:1.5rem;margin:0 0 14px;text-align:center;}
 .avatar-preview{display:flex;justify-content:center;margin:2px 0 14px;}
@@ -132,8 +121,6 @@ textarea.field{resize:vertical;font-size:.95rem;}
 .color-row{display:flex;gap:8px;justify-content:center;margin-bottom:6px;flex-wrap:wrap;}
 .color-choice{width:30px;height:30px;border-radius:50%;border:3px solid transparent;cursor:pointer;}
 .color-choice.selected{border-color:var(--text);}
-.visibility-toggle{display:flex;gap:8px;margin-top:14px;}
-.visibility-toggle .cta{width:auto;flex:1;padding:12px;font-size:.92rem;}
 .share-block{text-align:center;padding:6px 0 4px;}
 .pin-display{display:flex;justify-content:center;gap:6px;margin:8px 0 14px;}
 .pin-display.small{margin:10px 0;}
@@ -275,10 +262,7 @@ const INACTIVITY_MS = 3 * 60 * 1000;
 let uiScreen = 'home'; // home | create | join | room
 let currentPin = null;
 let roomRef = null;
-let homeGamesRef = null;
-let lastPublicSnapshot = null;
 let draftPin = '';
-let draftPublic = true;
 let draftName = localStorage.getItem('pb_lastName') || '';
 let draftEmoji = AVATAR_EMOJIS[0];
 let draftColor = AVATAR_COLORS[0];
@@ -289,7 +273,7 @@ let draftColor = AVATAR_COLORS[0];
   } catch(e){}
 })();
 
-let state = { hostName:'', public:true, categories: DEFAULT_CATEGORIES, roundDurationMs: 90000, players: {}, currentRound: null, history: {} };
+let state = { hostName:'', hostKey:'', maxRounds:0, categories: DEFAULT_CATEGORIES, roundDurationMs: 90000, players: {}, currentRound: null, history: {} };
 let myName = '';
 let myKey = '';
 let localAnswers = {};
@@ -424,62 +408,11 @@ function refreshAvatarPicker(){
 function renderHomeContent(){
   let html = '<div class="cover-hero">' + renderLogoTiles() +
     '<p class="tagline">Entre potes, à distance</p>' +
-    '<p class="rules-hint">Crée une partie ou rejoins tes potes avec un code.</p></div>';
+    '<p class="rules-hint">Crée une partie et partage le QR code avec tes amis pour qu’ils rejoignent.</p></div>';
   html += '<div class="home-actions">' +
     '<button type="button" class="cta" data-action="go-create">🎉 Créer une partie</button>' +
   '</div>';
-  html += '<div class="section-heading-row"><p class="section-heading">Parties publiques</p>' +
-    '<button type="button" id="refresh-public-btn" class="icon-btn small" data-action="refresh-public-games" aria-label="Actualiser">🔄</button></div>';
-  html += '<div id="public-games-list" class="public-games-list"><p class="muted" style="text-align:center;">Chargement…</p></div>';
   return html;
-}
-function renderPublicGameRow(pin, g){
-  const count = Object.keys(g.players||{}).length;
-  return '<button type="button" class="public-game-row" data-action="quick-join" data-pin="'+pin+'">' +
-    '<span class="pg-name">Partie de '+esc(g.hostName||'?')+'</span>' +
-    '<span class="pg-count">'+count+' joueur'+(count>1?'s':'')+'</span></button>';
-}
-function renderPublicGamesList(){
-  const el = document.getElementById('public-games-list');
-  if (!el) return;
-  const all = lastPublicSnapshot || {};
-  const pins = Object.keys(all).filter(function(pin){ return all[pin] && all[pin].public; });
-  if (!pins.length){ el.innerHTML = '<p class="muted" style="text-align:center;">Aucune partie publique pour l’instant.</p>'; return; }
-  pins.sort(function(a,b){ return (all[b].createdAt||0) - (all[a].createdAt||0); });
-  el.innerHTML = pins.map(function(pin){ return renderPublicGameRow(pin, all[pin]); }).join('');
-}
-function handleRefreshPublicGames(){
-  const btn = document.getElementById('refresh-public-btn');
-  if (btn) btn.classList.add('spinning');
-  db.ref('games').once('value').then(function(snap){
-    lastPublicSnapshot = snap.val() || {};
-    sweepInactiveGames(lastPublicSnapshot);
-    renderPublicGamesList();
-  }).catch(function(){ showToast('Erreur de rafraîchissement.'); }).then(function(){
-    if (btn) btn.classList.remove('spinning');
-  });
-}
-function sweepInactiveGames(all){
-  const now = Date.now();
-  Object.keys(all).forEach(function(pin){
-    const g = all[pin];
-    const lastAct = (g && (g.lastActivity || g.createdAt)) || 0;
-    if (now - lastAct > INACTIVITY_MS){
-      db.ref('games/' + pin).remove();
-    }
-  });
-}
-function attachHomeListener(){
-  if (homeGamesRef) return;
-  homeGamesRef = db.ref('games');
-  homeGamesRef.on('value', function(snap){
-    lastPublicSnapshot = snap.val() || {};
-    sweepInactiveGames(lastPublicSnapshot);
-    if (uiScreen === 'home') renderPublicGamesList();
-  });
-}
-function detachHomeListener(){
-  if (homeGamesRef){ homeGamesRef.off(); homeGamesRef = null; }
 }
 
 /* ---------- create / join ---------- */
@@ -487,11 +420,6 @@ function renderCreateContent(){
   let html = '<div class="join-hero"><h2>Créer une partie</h2>';
   html += '<div id="avatar-picker">' + renderAvatarPickerInner() + '</div>';
   html += '<form id="create-form"><input id="name-input" class="field" type="text" placeholder="Ton prénom" maxlength="20" autocomplete="off" value="'+esc(draftName)+'"></form>';
-  html += '<div class="visibility-toggle">' +
-    '<button type="button" class="cta secondary'+(draftPublic?' active':'')+'" data-action="set-visibility" data-public="1">🌍 Publique</button>' +
-    '<button type="button" class="cta secondary'+(!draftPublic?' active':'')+'" data-action="set-visibility" data-public="0">🔒 Privée</button>' +
-  '</div>';
-  html += '<p id="visibility-hint" class="rules-hint" style="margin-top:10px;">'+(draftPublic ? 'Visible dans la liste pour tout le monde.' : 'Accessible uniquement par code ou QR.')+'</p>';
   html += '<p id="join-error" class="error"></p></div>';
   return html;
 }
@@ -524,11 +452,12 @@ function attemptCreatePin(tries, name){
       players[key] = { name: name, emoji: draftEmoji, color: draftColor };
       return {
         hostName: name,
-        public: !!draftPublic,
+        hostKey: key,
         createdAt: Date.now(),
         lastActivity: Date.now(),
         categories: DEFAULT_CATEGORIES,
         roundDurationMs: 90000,
+        maxRounds: 0,
         players: players,
         currentRound: null,
         history: {}
@@ -583,7 +512,6 @@ function enterRoom(pin, name, key){
   myName = name; myKey = key;
   localStorage.setItem('pb_identity_' + pin, JSON.stringify({name:name, key:key}));
   history.replaceState(null, '', '?pin=' + pin);
-  detachHomeListener();
   hasRenderedOnce = false;
   lastPhase = null;
   hasAutoSubmitted = false;
@@ -607,7 +535,6 @@ function goHome(){
   currentPin = null; myKey = ''; myName = '';
   history.replaceState(null, '', location.pathname);
   uiScreen = 'home';
-  attachHomeListener();
   renderTop();
 }
 function roomSnapshotHandler(snap){
@@ -623,7 +550,8 @@ function roomSnapshotHandler(snap){
   }
   state = {
     hostName: val.hostName || '',
-    public: !!val.public,
+    hostKey: val.hostKey || '',
+    maxRounds: (val.maxRounds !== undefined && val.maxRounds !== null) ? val.maxRounds : 0,
     categories: val.categories || DEFAULT_CATEGORIES,
     roundDurationMs: val.roundDurationMs || 90000,
     players: val.players || {},
@@ -639,29 +567,34 @@ function roomSnapshotHandler(snap){
     locked = sessionStorage.getItem(lockedKey(currentPin, state.currentRound.number)) === '1';
   }
   if (!hasRenderedOnce) attemptPendingSubmit();
+  if (phase === 'reveal') submitMyAnswers();
   hasRenderedOnce = true;
 }
 
 /* ---------- room content: lobby ---------- */
 function renderLobbyContent(s){
   const keys = Object.keys(s.players);
-  let html = '<div class="share-block"><p class="section-heading" style="margin-top:0;">Code de la partie</p>';
-  html += '<div class="pin-display">' + currentPin.split('').map(function(d){ return '<span class="pin-digit">'+esc(d)+'</span>'; }).join('') + '</div>';
+  let html = '<div class="share-block"><p class="section-heading" style="margin-top:0;">Inviter des amis</p>';
   html += '<div id="qr-canvas" class="qr-canvas"></div>';
-  html += '<button type="button" class="btn-link" data-action="copy-link">Copier le lien à partager</button></div>';
+  html += '<p class="muted" style="font-size:.8rem;">Scanne ce code pour rejoindre</p></div>';
   html += '<p class="section-heading">Salle d’attente</p>';
   html += '<div class="lobby-grid">' + keys.map(function(k){
     const isMe = k === myKey;
+    const isHost = k === s.hostKey;
     return '<div class="lobby-avatar">' +
       playerAvatarHtml(s.players[k], 'big') +
-      '<span class="lobby-name">'+esc(s.players[k].name)+(isMe?' (toi)':'')+'</span></div>';
+      '<span class="lobby-name">'+esc(s.players[k].name)+(isMe?' (toi)':'')+(isHost?' 👑':'')+'</span></div>';
   }).join('') + '</div>';
   html += '<p class="section-heading">Catégories</p>';
   html += '<div class="players-grid">' + s.categories.map(function(c){ return '<span class="chip">'+esc(c)+'</span>'; }).join('') + '</div>';
-  html += '<p class="muted" style="margin-top:14px;font-size:.85rem;">Manche de '+Math.round((s.roundDurationMs||90000)/1000)+'s · touche ⋯ en haut pour régler</p>';
+  const roundsLabel = s.maxRounds > 0 ? (s.maxRounds + ' manches') : 'manches illimitées';
+  html += '<p class="muted" style="margin-top:14px;font-size:.85rem;">Manche de '+Math.round((s.roundDurationMs||90000)/1000)+'s · '+roundsLabel+' · touche ⋯ en haut pour régler</p>';
   return html;
 }
-function renderLobbyBottom(){
+function renderLobbyBottom(s){
+  if (myKey !== s.hostKey){
+    return '<p class="muted" style="text-align:center;padding:14px 0;margin:0;">En attente que l’hôte 👑 lance la manche…</p>';
+  }
   return '<button type="button" class="cta" data-action="start-round">🎲 Lancer la manche</button>';
 }
 function renderQr(){
@@ -676,14 +609,6 @@ function renderQr(){
       correctLevel: QRCode.CorrectLevel.M
     });
   } catch(e){}
-}
-function handleCopyLink(){
-  const url = location.origin + location.pathname + '?pin=' + currentPin;
-  if (navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(url).then(function(){ showToast('Lien copié !'); }).catch(function(){ showToast(url); });
-  } else {
-    showToast(url);
-  }
 }
 
 /* ---------- room content: countdown / playing / reveal ---------- */
@@ -781,13 +706,20 @@ function renderPodium(s, sorted, totals){
 function renderLeaderboardContent(s){
   const round = s.currentRound;
   const keys = Object.keys(s.players);
+  const isFinal = s.maxRounds > 0 && round.number >= s.maxRounds;
   const roundRes = scoreRound(round, keys, s.categories);
   const roundMax = keys.reduce(function(m,k){ return Math.max(m, roundRes.totals[k]||0); }, 0);
   const roundWinners = keys.filter(function(k){ return roundMax > 0 && (roundRes.totals[k]||0) === roundMax; });
   const totals = cumulativeTotals(s);
   const sorted = keys.slice().sort(function(a,b){ return (totals[b]||0)-(totals[a]||0); });
-  let html = '<div class="hero"><p class="section-title">Classement</p></div>';
-  if (roundWinners.length && roundWinners.length < keys.length){
+  let html = '<div class="hero"><p class="section-title">'+(isFinal ? '🏁 Partie terminée !' : 'Classement')+'</p></div>';
+  if (isFinal){
+    const gameMax = totals[sorted[0]] || 0;
+    const gameWinners = sorted.filter(function(k){ return gameMax > 0 && (totals[k]||0) === gameMax; });
+    if (gameWinners.length){
+      html += '<p class="mvp-banner">🏆 '+gameWinners.map(function(k){ return esc(s.players[k].name); }).join(' & ')+' remporte'+(gameWinners.length>1?'nt':'')+' la partie !</p>';
+    }
+  } else if (roundWinners.length && roundWinners.length < keys.length){
     html += '<p class="mvp-banner">🏆 '+roundWinners.map(function(k){ return esc(s.players[k].name); }).join(' & ')+' rafle'+(roundWinners.length>1?'nt':'')+' la manche '+round.number+'</p>';
   }
   html += renderPodium(s, sorted, totals);
@@ -799,7 +731,12 @@ function renderLeaderboardContent(s){
   }
   return html;
 }
-function renderLeaderboardBottom(){
+function renderLeaderboardBottom(s){
+  const round = s.currentRound;
+  const isFinal = s.maxRounds > 0 && round.number >= s.maxRounds;
+  if (isFinal){
+    return '<button type="button" class="cta" data-action="replay-game">🎉 Rejouer</button>';
+  }
   return '<button type="button" class="cta" data-action="next-round">🔄 Manche suivante</button>';
 }
 
@@ -821,7 +758,6 @@ function renderScoreboard(s){
 function sheetContentHtml(s){
   const lobby = getPhase(s) === 'lobby';
   let html = '<h3 class="sheet-title">Réglages</h3>';
-  html += '<p class="muted" style="margin:0 0 14px;">Code <strong class="mono">'+esc(currentPin)+'</strong> · '+(s.public?'partie publique':'partie privée')+'</p>';
   if (lobby){
     html += '<p class="section-heading" style="margin-top:0;">Catégories (une par ligne)</p>';
     html += '<textarea id="categories-textarea" class="field" rows="8">'+esc(s.categories.join('\n'))+'</textarea>';
@@ -831,8 +767,14 @@ function sheetContentHtml(s){
       const active = (s.roundDurationMs||90000) === ms ? ' active' : '';
       return '<button type="button" class="cta secondary'+active+'" data-action="set-duration" data-ms="'+ms+'">'+(ms/1000)+'s</button>';
     }).join('') + '</div>';
+    html += '<p class="section-heading">Nombre de manches</p>';
+    html += '<div class="duration-choices">' + [3,5,10,0].map(function(mr){
+      const label = mr === 0 ? '∞' : String(mr);
+      const active = (s.maxRounds||0) === mr ? ' active' : '';
+      return '<button type="button" class="cta secondary'+active+'" data-action="set-max-rounds" data-mr="'+mr+'">'+label+'</button>';
+    }).join('') + '</div>';
   } else {
-    html += '<p class="muted">Les catégories et la durée se règlent avant de lancer une manche.</p>';
+    html += '<p class="muted">Les catégories, la durée et le nombre de manches se règlent avant de lancer une manche.</p>';
   }
   html += '<div style="text-align:center;margin-top:22px;display:flex;flex-direction:column;gap:4px;">' +
     '<button type="button" class="btn-link" data-action="reset-scores">Réinitialiser les scores de cette partie</button>' +
@@ -914,10 +856,10 @@ function renderTop(){
     if (phase !== lastPhase && phase === 'reveal'){ viewingLeaderboard = false; reviewCatIndex = 0; }
     lastPhase = phase;
     if (phase !== 'countdown') lastCountdownLabel = null;
-    if (phase === 'lobby'){ contentHtml = renderLobbyContent(state); bottomHtml = renderLobbyBottom(); }
+    if (phase === 'lobby'){ contentHtml = renderLobbyContent(state); bottomHtml = renderLobbyBottom(state); }
     else if (phase === 'countdown'){ contentHtml = renderCountdownContent(); bottomHtml = ''; }
     else if (phase === 'playing'){ contentHtml = renderPlayingContent(state); bottomHtml = renderPlayingBottom(); }
-    else if (viewingLeaderboard){ contentHtml = renderLeaderboardContent(state); bottomHtml = renderLeaderboardBottom(); }
+    else if (viewingLeaderboard){ contentHtml = renderLeaderboardContent(state); bottomHtml = renderLeaderboardBottom(state); }
     else { contentHtml = renderRevealContent(state); bottomHtml = renderRevealBottom(state); }
   }
   document.getElementById('content').innerHTML = contentHtml;
@@ -927,7 +869,6 @@ function renderTop(){
     const el = document.getElementById(preserveId);
     if (el){ el.value = preserveVal; el.focus(); }
   }
-  if (uiScreen === 'home') renderPublicGamesList();
   if (uiScreen === 'room'){
     const phase = getPhase(state);
     if (phase === 'playing') updateTimerUI();
@@ -965,7 +906,7 @@ function cleanupOldRoundStorage(pin, currentNumber){
 
 /* ---------- room actions ---------- */
 function handleStartRound(){
-  if (!roomRef) return;
+  if (!roomRef || myKey !== state.hostKey) return;
   setBusy(true, 'Lancement…');
   const used = historyList(state).map(function(r){ return r.letter; });
   const letter = pickLetter(used);
@@ -1039,6 +980,16 @@ function handleSetDuration(ms){
   setBusy(true, '…');
   roomRef.update({ roundDurationMs: ms, lastActivity: Date.now() }).then(function(){ setBusy(false,''); openSheet(); }).catch(function(){ setBusy(false,''); });
 }
+function handleSetMaxRounds(mr){
+  if (!roomRef) return;
+  setBusy(true, '…');
+  roomRef.update({ maxRounds: mr, lastActivity: Date.now() }).then(function(){ setBusy(false,''); openSheet(); }).catch(function(){ setBusy(false,''); });
+}
+function handleReplayGame(){
+  if (!roomRef) return;
+  setBusy(true, '…');
+  roomRef.update({ history: null, currentRound: null, lastActivity: Date.now() }).then(function(){ setBusy(false,''); }).catch(function(){ setBusy(false,''); showToast('Erreur.'); });
+}
 function submitMyAnswers(){
   if (hasAutoSubmitted || !roomRef) return;
   if (!myKey || !state.players[myKey]) return;
@@ -1084,7 +1035,7 @@ document.addEventListener('visibilitychange', function(){
 });
 
 /* ---------- navigation & events ---------- */
-function goCreate(){ draftPublic = true; draftPin = ''; detachHomeListener(); uiScreen = 'create'; renderTop(); }
+function goCreate(){ draftPin = ''; uiScreen = 'create'; renderTop(); }
 document.addEventListener('submit', function(e){
   if (e.target && e.target.id === 'create-form'){ e.preventDefault(); handleConfirmCreate(); }
   else if (e.target && e.target.id === 'join-form'){ e.preventDefault(); handleConfirmJoin(); }
@@ -1094,21 +1045,12 @@ document.addEventListener('click', function(e){
   if (!btn) return;
   const action = btn.dataset.action;
   if (action === 'go-create') goCreate();
-  else if (action === 'go-home'){ uiScreen = 'home'; attachHomeListener(); renderTop(); }
-  else if (action === 'refresh-public-games') handleRefreshPublicGames();
-  else if (action === 'quick-join'){ draftPin = btn.dataset.pin; detachHomeListener(); uiScreen = 'join'; renderTop(); }
+  else if (action === 'go-home'){ uiScreen = 'home'; renderTop(); }
   else if (action === 'pick-emoji'){ draftEmoji = btn.dataset.emoji; refreshAvatarPicker(); }
   else if (action === 'pick-color'){ draftColor = btn.dataset.color; refreshAvatarPicker(); }
-  else if (action === 'set-visibility'){
-    draftPublic = btn.dataset.public === '1';
-    document.querySelectorAll('.visibility-toggle .cta').forEach(function(b){ b.classList.remove('active'); });
-    btn.classList.add('active');
-    const hint = document.getElementById('visibility-hint');
-    if (hint) hint.textContent = draftPublic ? 'Visible dans la liste pour tout le monde.' : 'Accessible uniquement par code ou QR.';
-  }
-  else if (action === 'copy-link') handleCopyLink();
   else if (action === 'start-round') handleStartRound();
   else if (action === 'next-round') handleNextRound();
+  else if (action === 'replay-game') handleReplayGame();
   else if (action === 'finish-round') handleFinishRound();
   else if (action === 'review-next'){ reviewCatIndex = Math.min(reviewCatIndex+1, state.categories.length-1); renderTop(); }
   else if (action === 'review-prev'){ reviewCatIndex = Math.max(reviewCatIndex-1, 0); renderTop(); }
@@ -1116,6 +1058,7 @@ document.addEventListener('click', function(e){
   else if (action === 'vote') handleVote(btn.dataset.cat, btn.dataset.target, btn.dataset.value);
   else if (action === 'save-categories') handleSaveCategories();
   else if (action === 'set-duration') handleSetDuration(parseInt(btn.dataset.ms,10));
+  else if (action === 'set-max-rounds') handleSetMaxRounds(parseInt(btn.dataset.mr,10));
   else if (action === 'reset-scores') handleResetScores();
   else if (action === 'leave-room') handleLeaveRoom();
   else if (action === 'open-menu') openSheet();
@@ -1155,7 +1098,6 @@ setInterval(tick, 250);
     return;
   }
   uiScreen = 'home';
-  attachHomeListener();
   renderTop();
 })();
 </script>
