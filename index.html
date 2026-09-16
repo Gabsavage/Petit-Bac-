@@ -170,15 +170,21 @@ textarea.field{resize:vertical;font-size:.95rem;}
 .answer-row input:focus{outline:none;}
 .answer-row input:disabled{color:var(--text-soft);}
 .mvp-banner{text-align:center;font-family:var(--font-display);font-weight:700;font-size:1.05rem;color:var(--accent-2);margin:0 0 14px;}
+.hurry-banner{color:var(--danger);font-weight:700;font-family:var(--font-display);font-size:1rem;margin:10px 0 0;text-align:center;}
 .reveal-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 14px 12px;margin-bottom:12px;}
 .reveal-card h3{font-family:var(--font-display);font-size:1.02rem;margin:0 0 10px;font-weight:700;}
-.answer-chips{display:flex;flex-wrap:wrap;gap:8px;}
-.answer-chip{display:flex;align-items:center;gap:6px;background:var(--surface-2);border-radius:100px;padding:4px 10px 4px 4px;font-size:.84rem;}
-.answer-chip .word{font-weight:600;}
-.answer-chip.empty .word{color:var(--invalid);font-style:italic;font-weight:400;}
-.answer-chip .pts{font-family:var(--font-mono);font-size:.7rem;padding:2px 7px;border-radius:100px;color:var(--invalid);}
-.answer-chip.unique .pts{background:var(--success-tint);color:var(--success);}
-.answer-chip.dup .pts{background:var(--dup-tint);color:var(--dup);}
+.review-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.review-row:last-child{border-bottom:none;}
+.review-word{flex:1;font-weight:600;min-width:80px;}
+.review-word.empty{color:var(--invalid);font-style:italic;font-weight:400;}
+.letter-warn{font-size:.8rem;}
+.vote-tally{font-family:var(--font-mono);font-size:.72rem;color:var(--text-soft);white-space:nowrap;}
+.vote-btns{display:flex;gap:4px;}
+.vote-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:var(--surface-2);font-size:.9rem;cursor:pointer;padding:0;}
+.vote-btn.active-yes{background:var(--success-tint);border-color:var(--success);}
+.vote-btn.active-no{background:rgba(230,57,80,.15);border-color:var(--danger);}
+.review-pts{font-family:var(--font-mono);font-size:.78rem;min-width:26px;text-align:right;color:var(--text-soft);}
+
 .legend{font-size:.78rem;text-align:center;margin:6px 0 10px;}
 .status-toast{position:absolute;left:50%;bottom:96px;transform:translate(-50%,8px);background:var(--text);color:var(--bg);
   padding:9px 18px;border-radius:100px;font-size:.82rem;opacity:0;pointer-events:none;
@@ -239,6 +245,7 @@ const AVATAR_EMOJIS = ['😀','😎','🤠','🥳','🤖','👻','🐶','🐱','
 const AVATAR_COLORS = ['#FF6B5B','#FFC94D','#4CE0A0','#5B8DEF','#C77DFF','#FF7AA8','#4DD4E8','#F2A65A'];
 const RING_CIRC = 2 * Math.PI * 52;
 const COUNTDOWN_MS = 3000;
+const FINISH_GRACE_MS = 5000;
 
 let uiScreen = 'home'; // home | create | join | room
 let currentPin = null;
@@ -292,23 +299,31 @@ function playerAvatarHtml(player, sizeClass, badgeHtml){
   const emo = (player && player.emoji) || '❓';
   return '<span class="avatar'+(sizeClass?(' '+sizeClass):'')+'" style="background:'+esc(bg)+'">'+esc(emo)+(badgeHtml||'')+'</span>';
 }
+function voteTally(round, catIdx, key){
+  const votes = (((round.votes||{})[catIdx]||{})[key]) || {};
+  let yes = 0, no = 0;
+  Object.keys(votes).forEach(function(v){ if (votes[v] === true) yes++; else if (votes[v] === false) no++; });
+  return { yes: yes, no: no };
+}
 function scoreRound(round, keys, categories){
   const perCat = {}; const totals = {};
   const answers = round.answers || {};
   keys.forEach(function(k){ perCat[k] = {}; totals[k] = 0; });
-  categories.forEach(function(cat){
+  categories.forEach(function(cat, idx){
     const norms = {};
     keys.forEach(function(k){
-      const raw = (answers[k] && answers[k][cat]) || '';
+      const raw = (answers[k] && answers[k][idx]) || '';
       const n = normalize(raw);
-      const valid = n.length > 0 && n[0] === round.letter.toLowerCase();
-      norms[k] = valid ? n : null;
+      if (!n){ norms[k] = null; return; }
+      const tally = voteTally(round, idx, k);
+      const accepted = !(tally.no > tally.yes);
+      norms[k] = accepted ? n : null;
     });
     const counts = {};
     keys.forEach(function(k){ if (norms[k]) counts[norms[k]] = (counts[norms[k]]||0) + 1; });
     keys.forEach(function(k){
-      const pts = norms[k] ? (counts[norms[k]] === 1 ? 10 : 5) : 0;
-      perCat[k][cat] = pts;
+      const pts = norms[k] ? (counts[norms[k]] === 1 ? 2 : 1) : 0;
+      perCat[k][idx] = pts;
       totals[k] += pts;
     });
   });
@@ -317,12 +332,17 @@ function scoreRound(round, keys, categories){
 function historyList(s){
   return Object.keys(s.history||{}).map(function(k){ return s.history[k]; });
 }
+function roundEndsAt(round){
+  const b1 = round.endTime;
+  const b2 = round.finishedAt ? (round.finishedAt + FINISH_GRACE_MS) : Infinity;
+  return Math.min(b1, b2);
+}
 function cumulativeTotals(s){
   const keys = Object.keys(s.players);
   const totals = {};
   keys.forEach(function(k){ totals[k] = 0; });
   const rounds = historyList(s);
-  if (s.currentRound && Date.now() >= s.currentRound.endTime) rounds.push(s.currentRound);
+  if (s.currentRound && Date.now() >= roundEndsAt(s.currentRound)) rounds.push(s.currentRound);
   rounds.forEach(function(r){
     const res = scoreRound(r, keys, s.categories);
     keys.forEach(function(k){ totals[k] += (res.totals[k]||0); });
@@ -333,7 +353,7 @@ function getPhase(s){
   if (!s.currentRound) return 'lobby';
   const now = Date.now();
   if (s.currentRound.revealAt && now < s.currentRound.revealAt) return 'countdown';
-  if (now < s.currentRound.endTime) return 'playing';
+  if (now < roundEndsAt(s.currentRound)) return 'playing';
   return 'reveal';
 }
 function formatTime(totalSeconds){
@@ -341,6 +361,7 @@ function formatTime(totalSeconds){
   const sec = totalSeconds % 60;
   return (m<10?'0':'')+m+':'+(sec<10?'0':'')+sec;
 }
+
 
 /* ---------- shared bits ---------- */
 function renderLogoTiles(){
@@ -618,17 +639,22 @@ function renderPlayingContent(s){
   let html = '<div class="hero"><div class="letter-badge">'+esc(round.letter)+'</div>' +
     '<div class="timer-ring"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"></circle>' +
     '<circle class="ring-fg" id="ring-fg" cx="60" cy="60" r="52"></circle></svg>' +
-    '<div class="timer-ring-label" id="timer-display">--:--</div></div></div>';
-  html += '<div class="answer-list">' + s.categories.map(function(cat){
-    const val = localAnswers[cat] || '';
+    '<div class="timer-ring-label" id="timer-display">--:--</div></div>';
+  if (round.finishedAt){
+    const finisherName = (s.players[round.finishedBy] && s.players[round.finishedBy].name) || 'Un joueur';
+    html += '<p class="hurry-banner">⚡ '+esc(finisherName)+' a fini, dépêche-toi !</p>';
+  }
+  html += '</div>';
+  html += '<div class="answer-list">' + s.categories.map(function(cat, idx){
+    const val = localAnswers[idx] || '';
     const dis = locked ? 'disabled' : '';
-    return '<div class="answer-row"><span class="cat-label">'+esc(cat)+'</span><input type="text" class="answer-input" data-cat="'+esc(cat)+'" '+dis+' value="'+esc(val)+'" autocomplete="off" placeholder="…"></div>';
+    return '<div class="answer-row"><span class="cat-label">'+esc(cat)+'</span><input type="text" class="answer-input" data-cat="'+idx+'" '+dis+' value="'+esc(val)+'" autocomplete="off" placeholder="…"></div>';
   }).join('') + '</div>';
   return html;
 }
 function renderPlayingBottom(){
-  if (locked) return '<button type="button" class="cta secondary" disabled>Verrouillé, en attente…</button>';
-  return '<button type="button" class="cta secondary" data-action="lock-answers">✅ J’ai fini</button>';
+  if (locked) return '<button type="button" class="cta secondary" disabled>Envoyé, en attente…</button>';
+  return '<button type="button" class="cta" data-action="finish-round">⚡ J’ai fini !</button>';
 }
 function renderRevealContent(s){
   const round = s.currentRound;
@@ -644,18 +670,33 @@ function renderRevealContent(s){
   if (winners.length && winners.length < keys.length){
     html += '<p class="mvp-banner">🏆 '+winners.map(function(k){ return esc(s.players[k].name); }).join(' & ')+' rafle'+(winners.length>1?'nt':'')+' la manche</p>';
   }
+  html += '<p class="muted" style="text-align:center;font-size:.82rem;">Vote sur chaque réponse pour la valider ou la refuser</p>';
   if (waiting) html += '<p class="muted" style="text-align:center">En attente des réponses ('+answeredCount+'/'+keys.length+')…</p>';
-  html += s.categories.map(function(cat){
-    const inner = keys.map(function(k){
-      const raw = (answers[k] && answers[k][cat]) || '';
-      const pts = res.perCat[k][cat];
-      const cls = !raw ? 'empty' : (pts===10?'unique':(pts===5?'dup':'invalid'));
-      const word = raw ? esc(raw) : 'pas de réponse';
-      return '<span class="answer-chip '+cls+'">' + playerAvatarHtml(s.players[k], 'small') + '<span class="word">'+word+'</span><span class="pts">'+(pts?('+'+pts):'0')+'</span></span>';
+  html += s.categories.map(function(cat, idx){
+    const rows = keys.map(function(k){
+      const raw = (answers[k] && answers[k][idx]) || '';
+      const pts = res.perCat[k][idx];
+      if (!raw){
+        return '<div class="review-row">' + playerAvatarHtml(s.players[k],'small') +
+          '<span class="review-word empty">pas de réponse</span><span class="review-pts">0</span></div>';
+      }
+      const tally = voteTally(round, idx, k);
+      const votesForThis = (((round.votes||{})[idx]||{})[k]) || {};
+      const myVote = votesForThis[myKey];
+      const n = normalize(raw);
+      const letterWarn = !(n.length > 0 && n[0] === round.letter.toLowerCase());
+      return '<div class="review-row">' + playerAvatarHtml(s.players[k],'small') +
+        '<span class="review-word">'+esc(raw)+(letterWarn?' <span class="letter-warn" title="Ne commence pas par la lettre du tour">⚠️</span>':'')+'</span>' +
+        '<span class="vote-tally">👍'+tally.yes+' 👎'+tally.no+'</span>' +
+        '<span class="vote-btns">' +
+          '<button type="button" class="vote-btn'+(myVote===true?' active-yes':'')+'" data-action="vote" data-cat="'+idx+'" data-target="'+k+'" data-value="yes">👍</button>' +
+          '<button type="button" class="vote-btn'+(myVote===false?' active-no':'')+'" data-action="vote" data-cat="'+idx+'" data-target="'+k+'" data-value="no">👎</button>' +
+        '</span>' +
+        '<span class="review-pts">'+(pts?('+'+pts):'0')+'</span></div>';
     }).join('');
-    return '<div class="reveal-card"><h3>'+esc(cat)+'</h3><div class="answer-chips">'+inner+'</div></div>';
+    return '<div class="reveal-card"><h3>'+esc(cat)+'</h3>'+rows+'</div>';
   }).join('');
-  html += '<p class="legend muted">10 pts réponse unique · 5 pts en double · 0 pt invalide ou vide</p>';
+  html += '<p class="legend muted">2 pts réponse unique validée · 1 pt en double validée · 0 si refusée par vote ou vide</p>';
   return html;
 }
 function renderRevealBottom(){
@@ -712,16 +753,24 @@ function closeSheet(){
 
 /* ---------- ticking UI ---------- */
 function updateTimerUI(){
-  if (!state.currentRound) return;
-  const totalSec = Math.max(1, Math.round((state.roundDurationMs||90000)/1000));
-  const remain = Math.max(0, Math.ceil((state.currentRound.endTime - Date.now())/1000));
+  const round = state.currentRound;
+  if (!round) return;
+  const now = Date.now();
+  let totalSec, remain;
+  if (round.finishedAt){
+    totalSec = FINISH_GRACE_MS/1000;
+    remain = Math.max(0, Math.ceil((round.finishedAt + FINISH_GRACE_MS - now)/1000));
+  } else {
+    totalSec = Math.max(1, Math.round((state.roundDurationMs||90000)/1000));
+    remain = Math.max(0, Math.ceil((round.endTime - now)/1000));
+  }
   const label = document.getElementById('timer-display');
   if (label) label.textContent = formatTime(remain);
   const ring = document.getElementById('ring-fg');
   if (ring){
     const frac = Math.max(0, Math.min(1, remain/totalSec));
     ring.style.strokeDashoffset = (RING_CIRC * (1-frac)).toFixed(1);
-    ring.classList.toggle('danger', remain <= 10);
+    ring.classList.toggle('danger', remain <= 10 || !!round.finishedAt);
   }
 }
 function updateCountdownUI(){
@@ -848,11 +897,28 @@ function handleLeaveRoom(){
   closeSheet();
   goHome();
 }
-function handleLockAnswers(){
+function handleFinishRound(){
   document.querySelectorAll('.answer-input').forEach(function(inp){ localAnswers[inp.dataset.cat] = inp.value; });
   locked = true;
   if (state.currentRound) sessionStorage.setItem(lockedKey(currentPin, state.currentRound.number), '1');
+  submitMyAnswers();
+  if (roomRef && state.currentRound && !state.currentRound.finishedAt){
+    roomRef.child('currentRound/finishedAt').transaction(function(cur){ return cur === null ? Date.now() : cur; });
+    roomRef.child('currentRound/finishedBy').transaction(function(cur){ return cur === null ? myKey : cur; });
+  }
   renderTop();
+}
+function handleVote(catIdx, targetKey, value){
+  if (!roomRef || !myKey || !state.currentRound) return;
+  const path = 'currentRound/votes/' + catIdx + '/' + targetKey + '/' + myKey;
+  const votesForThis = (((state.currentRound.votes||{})[catIdx]||{})[targetKey]) || {};
+  const current = votesForThis[myKey];
+  const boolVal = (value === 'yes');
+  if (current === boolVal){
+    roomRef.child(path).remove();
+  } else {
+    roomRef.child(path).set(boolVal);
+  }
 }
 function handleSaveCategories(){
   const ta = document.getElementById('categories-textarea');
@@ -867,7 +933,7 @@ function handleSetDuration(ms){
   setBusy(true, '…');
   roomRef.child('roundDurationMs').set(ms).then(function(){ setBusy(false,''); openSheet(); }).catch(function(){ setBusy(false,''); });
 }
-function maybeAutoSubmit(){
+function submitMyAnswers(){
   if (hasAutoSubmitted || !roomRef) return;
   if (!myKey || !state.players[myKey]) return;
   const round = state.currentRound;
@@ -876,7 +942,7 @@ function maybeAutoSubmit(){
   if (existing){ hasAutoSubmitted = true; return; }
   hasAutoSubmitted = true;
   const answers = {};
-  state.categories.forEach(function(cat){ answers[cat] = (localAnswers[cat] || '').trim(); });
+  state.categories.forEach(function(cat, idx){ answers[idx] = (localAnswers[idx] || '').trim(); });
   sessionStorage.setItem(pendingKey(currentPin, round.number), JSON.stringify(answers));
   roomRef.child('currentRound/answers/' + myKey).set(answers).then(function(){
     sessionStorage.removeItem(pendingKey(currentPin, round.number));
@@ -902,8 +968,11 @@ function tick(){
   if (phase !== lastPhase){ renderTop(); }
   if (phase === 'playing'){ updateTimerUI(); }
   else if (phase === 'countdown'){ updateCountdownUI(); }
-  else if (phase === 'reveal' && state.currentRound){ maybeAutoSubmit(); }
+  else if (phase === 'reveal' && state.currentRound){ submitMyAnswers(); }
 }
+document.addEventListener('visibilitychange', function(){
+  if (!document.hidden) tick();
+});
 
 /* ---------- navigation & events ---------- */
 function goCreate(){ draftPublic = true; draftPin = ''; detachHomeListener(); uiScreen = 'create'; renderTop(); }
@@ -930,7 +999,8 @@ document.addEventListener('click', function(e){
   else if (action === 'copy-link') handleCopyLink();
   else if (action === 'start-round') handleStartRound();
   else if (action === 'next-round') handleNextRound();
-  else if (action === 'lock-answers') handleLockAnswers();
+  else if (action === 'finish-round') handleFinishRound();
+  else if (action === 'vote') handleVote(btn.dataset.cat, btn.dataset.target, btn.dataset.value);
   else if (action === 'save-categories') handleSaveCategories();
   else if (action === 'set-duration') handleSetDuration(parseInt(btn.dataset.ms,10));
   else if (action === 'reset-scores') handleResetScores();
