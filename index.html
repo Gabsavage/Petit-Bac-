@@ -47,10 +47,13 @@
 html,body{height:100%;}
 body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);-webkit-font-smoothing:antialiased;overscroll-behavior-y:none;}
 #app-shell{position:relative;height:100dvh;height:100vh;max-width:520px;margin:0 auto;display:flex;flex-direction:column;background:var(--bg);overflow:hidden;}
+#app-shell::before,#app-shell::after{content:'';position:absolute;border-radius:50%;filter:blur(70px);opacity:.3;z-index:0;pointer-events:none;}
+#app-shell::before{width:280px;height:280px;background:var(--accent);top:-100px;right:-80px;}
+#app-shell::after{width:240px;height:240px;background:var(--accent-2);bottom:-70px;left:-70px;}
 @media (min-width:560px){
   #app-shell{margin:22px auto;height:calc(100dvh - 44px);border-radius:30px;box-shadow:var(--shell-shadow);border:1px solid var(--border);}
 }
-.app-bar{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:calc(var(--safe-top) + 16px) 18px 8px;}
+.app-bar{position:relative;z-index:1;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:calc(var(--safe-top) + 16px) 18px 8px;}
 .app-bar-title{font-family:var(--font-display);font-weight:700;font-size:1.28rem;display:flex;align-items:center;}
 .conn-dot{width:8px;height:8px;border-radius:50%;background:var(--danger);margin-left:8px;}
 .conn-dot.hidden{display:none;}
@@ -58,7 +61,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body
   font-size:1.15rem;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1;}
 .icon-btn:active{transform:scale(.9);}
 .icon-btn[hidden]{display:none;}
-.scoreboard-strip{flex:0 0 auto;display:flex;gap:8px;overflow-x:auto;padding:6px 18px 14px;-webkit-overflow-scrolling:touch;}
+.scoreboard-strip{position:relative;z-index:1;flex:0 0 auto;display:flex;gap:8px;overflow-x:auto;padding:6px 18px 14px;-webkit-overflow-scrolling:touch;}
 .scoreboard-strip:empty{display:none;}
 .player-pill{flex:0 0 auto;display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);
   border-radius:100px;padding:4px 12px 4px 4px;}
@@ -66,10 +69,11 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body
 .avatar{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;
   font-size:.62rem;font-weight:700;color:#fff;flex-shrink:0;}
 .avatar.small{width:18px;height:18px;font-size:.52rem;}
+.avatar.big{width:56px;height:56px;font-size:1.05rem;position:relative;border:3px solid transparent;}
 .player-pill .name{font-size:.8rem;font-weight:600;}
 .player-pill .score{font-family:var(--font-mono);font-size:.72rem;color:var(--text-soft);}
-.content{flex:1 1 auto;overflow-y:auto;padding:4px 18px 18px;-webkit-overflow-scrolling:touch;}
-.bottom-bar{flex:0 0 auto;padding:12px 18px calc(var(--safe-bottom) + 16px);}
+.content{position:relative;z-index:1;flex:1 1 auto;overflow-y:auto;padding:4px 18px 18px;-webkit-overflow-scrolling:touch;}
+.bottom-bar{position:relative;z-index:1;flex:0 0 auto;padding:12px 18px calc(var(--safe-bottom) + 16px);}
 .bottom-bar:empty{display:none;}
 .cta{width:100%;border:none;border-radius:16px;padding:16px;font-family:var(--font-body);font-weight:700;
   font-size:1.02rem;background:var(--accent);color:var(--accent-ink);cursor:pointer;box-shadow:0 8px 20px rgba(255,107,91,.3);}
@@ -80,9 +84,6 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body
 .section-heading{font-size:.82rem;color:var(--text-soft);margin:18px 0 8px;font-weight:600;}
 .muted{color:var(--text-soft);}
 .error{color:var(--danger);font-size:.85rem;min-height:1.2em;margin:6px 0 0;}
-.join-hero{padding:14px 2px 4px;}
-.join-hero h2{font-family:var(--font-display);font-size:1.5rem;margin:0 0 8px;}
-.join-hero p{color:var(--text-soft);line-height:1.5;margin:0 0 20px;max-width:44ch;}
 .field{width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:14px;padding:14px 16px;
   font-size:1.05rem;color:var(--text);font-family:var(--font-body);}
 .field:focus{outline:2px solid var(--accent);outline-offset:1px;}
@@ -90,6 +91,21 @@ textarea.field{resize:vertical;font-size:.95rem;}
 .players-grid{display:flex;flex-wrap:wrap;gap:8px;}
 .chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);
   border-radius:100px;padding:6px 12px;font-size:.85rem;}
+.cover-hero{padding:22px 2px 6px;text-align:center;}
+.tile-row{display:flex;justify-content:center;gap:6px;margin-bottom:8px;}
+.tile{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;
+  font-family:var(--font-display);font-weight:700;font-size:1.3rem;box-shadow:0 6px 14px rgba(0,0,0,.2);}
+.tile-a{background:var(--accent);color:var(--accent-ink);}
+.tile-b{background:var(--accent-2);color:var(--accent-2-ink);}
+.tagline{font-family:var(--font-display);font-size:1.2rem;margin:16px 0 4px;font-weight:700;}
+.rules-hint{color:var(--text-soft);font-size:.9rem;line-height:1.5;margin:0 auto 22px;max-width:38ch;}
+.lobby-grid{display:flex;flex-wrap:wrap;gap:16px;justify-content:center;padding:12px 0 4px;}
+.lobby-avatar{display:flex;flex-direction:column;align-items:center;gap:6px;width:74px;}
+.lobby-avatar[data-action]{cursor:pointer;}
+.lobby-avatar.ready .avatar.big{border-color:var(--success);}
+.ready-badge{position:absolute;bottom:-2px;right:-2px;width:18px;height:18px;border-radius:50%;background:var(--success);
+  color:#fff;font-size:.62rem;display:flex;align-items:center;justify-content:center;border:2px solid var(--surface);}
+.lobby-name{font-size:.78rem;font-weight:600;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .hero{display:flex;flex-direction:column;align-items:center;padding:16px 0 6px;}
 .letter-badge{width:96px;height:96px;border-radius:26px;background:var(--accent-2);color:var(--accent-2-ink);
   display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;
@@ -97,7 +113,7 @@ textarea.field{resize:vertical;font-size:.95rem;}
   animation:popIn .35s cubic-bezier(.34,1.56,.64,1);}
 .letter-badge.small{width:60px;height:60px;font-size:1.9rem;border-radius:18px;margin-bottom:2px;}
 @keyframes popIn{from{transform:scale(.4) rotate(-3deg);opacity:0;}to{transform:scale(1) rotate(-3deg);opacity:1;}}
-@media (prefers-reduced-motion: reduce){.letter-badge{animation:none;}}
+@media (prefers-reduced-motion: reduce){.letter-badge,.countdown-number.pulse{animation:none;}}
 .timer-ring{position:relative;width:112px;height:112px;margin-top:14px;}
 .timer-ring svg{width:100%;height:100%;transform:rotate(-90deg);}
 .ring-bg{fill:none;stroke:var(--surface-2);stroke-width:8;}
@@ -107,6 +123,9 @@ textarea.field{resize:vertical;font-size:.95rem;}
 .timer-ring-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   font-family:var(--font-mono);font-size:1.25rem;font-weight:600;}
 .section-title{font-family:var(--font-display);font-size:1.15rem;text-align:center;margin:2px 0 4px;font-weight:700;}
+.countdown-hero{padding:44px 0;}
+.countdown-number{font-family:var(--font-display);font-size:5rem;font-weight:700;color:var(--accent-2);line-height:1;}
+.countdown-number.pulse{animation:popIn .3s cubic-bezier(.34,1.56,.64,1);}
 .answer-list{display:flex;flex-direction:column;margin-top:14px;border-radius:16px;overflow:hidden;
   background:var(--surface);border:1px solid var(--border);}
 .answer-row{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);}
@@ -116,6 +135,7 @@ textarea.field{resize:vertical;font-size:.95rem;}
   font-family:var(--font-body);padding:6px 0;min-width:0;}
 .answer-row input:focus{outline:none;}
 .answer-row input:disabled{color:var(--text-soft);}
+.mvp-banner{text-align:center;font-family:var(--font-display);font-weight:700;font-size:1.05rem;color:var(--accent-2);margin:0 0 14px;}
 .reveal-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 14px 12px;margin-bottom:12px;}
 .reveal-card h3{font-family:var(--font-display);font-size:1.02rem;margin:0 0 10px;font-weight:700;}
 .answer-chips{display:flex;flex-wrap:wrap;gap:8px;}
@@ -179,16 +199,18 @@ const db = firebase.database();
 const gameRef = db.ref('petitBac');
 
 const LETTER_POOL = ['A','B','C','D','E','F','G','H','I','J','L','M','N','O','P','R','S','T','V'];
-const DEFAULT_CATEGORIES = ["Prénom","Animal","Pays","Ville","Métier","Fruit ou légume","Objet","Couleur"];
+const DEFAULT_CATEGORIES = ["Prénom","Pays / Villes","Métiers","Célébrité","Marque","Animal","Partie du corps","Nourriture"];
 const RING_CIRC = 2 * Math.PI * 52;
+const COUNTDOWN_MS = 3000;
 
-let state = { categories: DEFAULT_CATEGORIES, roundDurationMs: 90000, players: {}, currentRound: null, history: {} };
+let state = { categories: DEFAULT_CATEGORIES, roundDurationMs: 90000, players: {}, currentRound: null, history: {}, ready: {} };
 let myName = localStorage.getItem('pb_myName') || '';
 let myKey = localStorage.getItem('pb_myKey') || '';
 let localAnswers = {};
 let locked = false;
 let hasAutoSubmitted = false;
 let lastPhase = null;
+let lastCountdownLabel = null;
 let hasRenderedOnce = false;
 let seeded = false;
 
@@ -258,7 +280,10 @@ function cumulativeTotals(s){
 }
 function getPhase(s){
   if (!s.currentRound) return 'lobby';
-  return Date.now() >= s.currentRound.endTime ? 'reveal' : 'playing';
+  const now = Date.now();
+  if (s.currentRound.revealAt && now < s.currentRound.revealAt) return 'countdown';
+  if (now < s.currentRound.endTime) return 'playing';
+  return 'reveal';
 }
 function formatTime(totalSeconds){
   const m = Math.floor(totalSeconds/60);
@@ -283,27 +308,58 @@ function joinFormHtml(intro){
     '<form id="join-form"><input id="name-input" class="field" type="text" placeholder="Ton prénom" maxlength="20" autocomplete="off" required></form>' +
     '<p id="join-error" class="error"></p>';
 }
+function renderLogoTiles(){
+  const rows = [['P','E','T','I','T'], ['B','A','C']];
+  const rotations = [-6,4,-3,5,-4,3,-5,2];
+  let idx = 0;
+  return rows.map(function(row){
+    const tiles = row.map(function(ch){
+      const rot = rotations[idx % rotations.length];
+      const cls = (idx % 2 === 0) ? 'tile-a' : 'tile-b';
+      idx++;
+      return '<span class="tile '+cls+'" style="transform:rotate('+rot+'deg)">'+ch+'</span>';
+    }).join('');
+    return '<div class="tile-row">' + tiles + '</div>';
+  }).join('');
+}
 function renderLobbyContent(s){
   const joined = myKey && s.players[myKey];
   const keys = Object.keys(s.players);
   if (!joined){
-    return '<div class="join-hero"><h2>Rejoins la partie</h2>' +
-      '<p>Le jeu du <strong>Petit Bac</strong> à distance&nbsp;: une lettre tombe, chacun tape ses mots, on compare à la fin du chrono. Réponse unique&nbsp;: 10&nbsp;pts, en double&nbsp;: 5, invalide ou vide&nbsp;: 0.</p>' +
+    return '<div class="cover-hero">' + renderLogoTiles() +
+      '<p class="tagline">Entre potes, à distance</p>' +
+      '<p class="rules-hint">Une lettre tombe, chacun tape ses mots, on compare les réponses à la fin du chrono.</p>' +
       joinFormHtml('') + '</div>';
   }
-  let html = '<p class="section-heading">Joueurs ('+keys.length+')</p>';
-  html += '<div class="players-grid">' + (keys.length ? keys.map(function(k){
-    return '<span class="chip"><span class="avatar small" style="background:'+avatarColor(k)+'">'+esc(initials(s.players[k]))+'</span>'+esc(s.players[k])+(k===myKey?' (toi)':'')+'</span>';
-  }).join('') : '<span class="muted">Personne pour l’instant…</span>') + '</div>';
+  const ready = s.ready || {};
+  const readyCount = keys.filter(function(k){ return ready[k]; }).length;
+  let html = '<p class="section-heading">Salle d’attente</p>';
+  html += '<div class="lobby-grid">' + keys.map(function(k){
+    const isMe = k === myKey;
+    const isReady = !!ready[k];
+    return '<div class="lobby-avatar'+(isReady?' ready':'')+'" '+(isMe?'data-action="toggle-ready"':'')+'>' +
+      '<span class="avatar big" style="background:'+avatarColor(k)+'">'+esc(initials(s.players[k]))+(isReady?'<span class="ready-badge">✓</span>':'')+'</span>' +
+      '<span class="lobby-name">'+esc(s.players[k])+(isMe?' (toi)':'')+'</span></div>';
+  }).join('') + '</div>';
+  html += '<p class="muted" style="text-align:center;font-size:.85rem;margin-top:2px;">'+readyCount+'/'+keys.length+' prêt·e'+(readyCount>1?'s':'')+' · touche ton avatar pour te déclarer prêt</p>';
   html += '<p class="section-heading">Catégories</p>';
   html += '<div class="players-grid">' + s.categories.map(function(c){ return '<span class="chip">'+esc(c)+'</span>'; }).join('') + '</div>';
-  html += '<p class="muted" style="margin-top:18px;font-size:.85rem;">Manche de '+Math.round((s.roundDurationMs||90000)/1000)+'s · touche ⋯ en haut pour régler</p>';
+  html += '<p class="muted" style="margin-top:14px;font-size:.85rem;">Manche de '+Math.round((s.roundDurationMs||90000)/1000)+'s · touche ⋯ en haut pour régler</p>';
   return html;
 }
 function renderLobbyBottom(s){
   const joined = myKey && s.players[myKey];
   if (!joined) return '<button type="submit" form="join-form" class="cta">Rejoindre</button>';
   return '<button type="button" class="cta" data-action="start-round">🎲 Lancer la manche</button>';
+}
+function renderCountdownContent(){
+  return '<div class="hero countdown-hero"><p class="section-title">Ça commence…</p>' +
+    '<div class="countdown-number" id="countdown-number">3</div></div>';
+}
+function renderJoinLate(){
+  return '<div class="cover-hero"><p class="muted" style="text-align:center">La manche est en cours. Entre ton prénom pour rejoindre&nbsp;:</p>'+
+    '<form id="join-form"><input id="name-input" class="field" type="text" placeholder="Ton prénom" maxlength="20" autocomplete="off" required></form>' +
+    '<p id="join-error" class="error"></p></div>';
 }
 function renderPlayingContent(s){
   const round = s.currentRound;
@@ -313,7 +369,7 @@ function renderPlayingContent(s){
     '<circle class="ring-fg" id="ring-fg" cx="60" cy="60" r="52"></circle></svg>' +
     '<div class="timer-ring-label" id="timer-display">--:--</div></div></div>';
   if (!joined){
-    html += '<div class="join-hero">' + joinFormHtml('<p class="muted" style="text-align:center">La manche est en cours. Rejoins pour participer&nbsp;:</p>') + '</div>';
+    html += renderJoinLate();
   } else {
     html += '<div class="answer-list">' + s.categories.map(function(cat){
       const val = localAnswers[cat] || '';
@@ -336,8 +392,13 @@ function renderRevealContent(s){
   const answers = round.answers || {};
   const answeredCount = keys.filter(function(k){ return !!answers[k]; }).length;
   const waiting = answeredCount < keys.length;
+  const maxScore = keys.reduce(function(m,k){ return Math.max(m, res.totals[k]||0); }, 0);
+  const winners = keys.filter(function(k){ return maxScore > 0 && (res.totals[k]||0) === maxScore; });
   let html = '<div class="hero"><div class="letter-badge small">'+esc(round.letter)+'</div>' +
     '<p class="section-title">Résultats · manche '+round.number+'</p></div>';
+  if (winners.length && winners.length < keys.length){
+    html += '<p class="mvp-banner">🏆 '+winners.map(function(k){ return esc(s.players[k]); }).join(' & ')+' rafle'+(winners.length>1?'nt':'')+' la manche</p>';
+  }
   if (waiting) html += '<p class="muted" style="text-align:center">En attente des réponses ('+answeredCount+'/'+keys.length+')…</p>';
   html += s.categories.map(function(cat){
     const inner = keys.map(function(k){
@@ -396,16 +457,32 @@ function updateTimerUI(){
     ring.classList.toggle('danger', remain <= 10);
   }
 }
+function updateCountdownUI(){
+  if (!state.currentRound) return;
+  const secs = Math.max(0, Math.ceil((state.currentRound.revealAt - Date.now())/1000));
+  const el = document.getElementById('countdown-number');
+  if (!el) return;
+  const label = secs > 0 ? String(secs) : 'GO !';
+  if (label !== lastCountdownLabel){
+    lastCountdownLabel = label;
+    el.textContent = label;
+    el.classList.remove('pulse');
+    void el.offsetWidth;
+    el.classList.add('pulse');
+  }
+}
 function renderApp(){
   const phase = getPhase(state);
   lastPhase = phase;
+  if (phase !== 'countdown') lastCountdownLabel = null;
   const preserveName = document.activeElement && document.activeElement.id === 'name-input' ? document.activeElement.value : null;
   document.getElementById('scoreboard-strip').innerHTML = renderScoreboard(state);
   document.getElementById('menu-btn').hidden = !(myKey && state.players[myKey]);
   let contentHtml, bottomHtml;
   if (phase === 'lobby'){ contentHtml = renderLobbyContent(state); bottomHtml = renderLobbyBottom(state); }
+  else if (phase === 'countdown'){ contentHtml = renderCountdownContent(); bottomHtml = ''; }
   else if (phase === 'playing'){ contentHtml = renderPlayingContent(state); bottomHtml = renderPlayingBottom(state); }
-  else { contentHtml = renderRevealContent(state); bottomHtml = renderRevealBottom(state); }
+  else { contentHtml = renderRevealContent(state); bottomHtml = renderRevealBottom(); }
   document.getElementById('content').innerHTML = contentHtml;
   document.getElementById('bottom-bar').innerHTML = bottomHtml;
   if (preserveName !== null){
@@ -413,6 +490,7 @@ function renderApp(){
     if (el){ el.value = preserveName; el.focus(); }
   }
   if (phase === 'playing') updateTimerUI();
+  if (phase === 'countdown') updateCountdownUI();
   const keys = Object.keys(state.players);
   document.title = 'Petit Bac' + (keys.length ? ' · '+keys.length+' joueur'+(keys.length>1?'s':'') : '');
 }
@@ -461,14 +539,20 @@ function handleJoin(name){
     localStorage.setItem('pb_myKey', key);
   });
 }
+function handleToggleReady(){
+  if (!myKey) return;
+  const isReady = !!(state.ready && state.ready[myKey]);
+  gameRef.child('ready/' + myKey).set(!isReady);
+}
 function handleStartRound(){
   setBusy(true, 'Lancement…');
   const used = historyList(state).map(function(r){ return r.letter; });
   const letter = pickLetter(used);
   const number = historyList(state).length + 1;
-  gameRef.child('currentRound').set({
-    number: number, letter: letter,
-    endTime: Date.now() + (state.roundDurationMs || 90000)
+  const revealAt = Date.now() + COUNTDOWN_MS;
+  gameRef.update({
+    currentRound: { number: number, letter: letter, revealAt: revealAt, endTime: revealAt + (state.roundDurationMs || 90000) },
+    ready: null
   }).then(function(){ setBusy(false,''); }).catch(function(){ setBusy(false,''); showToast('Erreur, réessaie.'); });
 }
 function handleNextRound(){
@@ -477,15 +561,16 @@ function handleNextRound(){
   const historyArr = historyList(state).concat([round]);
   const used = historyArr.map(function(r){ return r.letter; });
   const letter = pickLetter(used);
+  const revealAt = Date.now() + COUNTDOWN_MS;
   const updates = {};
   updates['history/' + round.number] = round;
-  updates['currentRound'] = { number: round.number + 1, letter: letter, endTime: Date.now() + (state.roundDurationMs || 90000) };
+  updates['currentRound'] = { number: round.number + 1, letter: letter, revealAt: revealAt, endTime: revealAt + (state.roundDurationMs || 90000) };
   gameRef.update(updates).then(function(){ setBusy(false,''); }).catch(function(){ setBusy(false,''); showToast('Erreur, réessaie.'); });
 }
 function handleResetGame(){
   if (!confirm('Tout effacer (joueurs, historique, scores) ?')) return;
   setBusy(true, 'Réinitialisation…');
-  gameRef.update({ players: null, history: null, currentRound: null }).then(function(){
+  gameRef.update({ players: null, history: null, currentRound: null, ready: null }).then(function(){
     setBusy(false,'');
     localStorage.removeItem('pb_myName'); localStorage.removeItem('pb_myKey');
     myName = ''; myKey = '';
@@ -543,6 +628,7 @@ function tick(){
   const phase = getPhase(state);
   if (phase !== lastPhase){ renderApp(); }
   if (phase === 'playing'){ updateTimerUI(); }
+  else if (phase === 'countdown'){ updateCountdownUI(); }
   else if (phase === 'reveal' && state.currentRound){ maybeAutoSubmit(); }
 }
 document.addEventListener('submit', function(e){
@@ -564,6 +650,7 @@ document.addEventListener('click', function(e){
   else if (action === 'reset-game') handleResetGame();
   else if (action === 'open-menu') openSheet();
   else if (action === 'close-menu') closeSheet();
+  else if (action === 'toggle-ready') handleToggleReady();
 });
 document.addEventListener('input', function(e){
   if (e.target && e.target.classList && e.target.classList.contains('answer-input')){
@@ -588,7 +675,8 @@ gameRef.on('value', function(snap){
     roundDurationMs: v.roundDurationMs || 90000,
     players: v.players || {},
     currentRound: v.currentRound || null,
-    history: v.history || {}
+    history: v.history || {},
+    ready: v.ready || {}
   };
   const phase = getPhase(state);
   if (!hasRenderedOnce || phase !== 'playing'){
