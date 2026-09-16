@@ -246,6 +246,7 @@ const AVATAR_COLORS = ['#FF6B5B','#FFC94D','#4CE0A0','#5B8DEF','#C77DFF','#FF7AA
 const RING_CIRC = 2 * Math.PI * 52;
 const COUNTDOWN_MS = 3000;
 const FINISH_GRACE_MS = 5000;
+const INACTIVITY_MS = 3 * 60 * 1000;
 
 let uiScreen = 'home'; // home | create | join | room
 let currentPin = null;
@@ -420,11 +421,22 @@ function renderPublicGamesList(){
   pins.sort(function(a,b){ return (all[b].createdAt||0) - (all[a].createdAt||0); });
   el.innerHTML = pins.map(function(pin){ return renderPublicGameRow(pin, all[pin]); }).join('');
 }
+function sweepInactiveGames(all){
+  const now = Date.now();
+  Object.keys(all).forEach(function(pin){
+    const g = all[pin];
+    const lastAct = (g && (g.lastActivity || g.createdAt)) || 0;
+    if (now - lastAct > INACTIVITY_MS){
+      db.ref('games/' + pin).remove();
+    }
+  });
+}
 function attachHomeListener(){
   if (homeGamesRef) return;
   homeGamesRef = db.ref('games');
   homeGamesRef.on('value', function(snap){
     lastPublicSnapshot = snap.val() || {};
+    sweepInactiveGames(lastPublicSnapshot);
     if (uiScreen === 'home') renderPublicGamesList();
   });
 }
@@ -476,6 +488,7 @@ function attemptCreatePin(tries, name){
         hostName: name,
         public: !!draftPublic,
         createdAt: Date.now(),
+        lastActivity: Date.now(),
         categories: DEFAULT_CATEGORIES,
         roundDurationMs: 90000,
         players: players,
@@ -520,6 +533,7 @@ function handleConfirmJoin(){
       if (!committed){ if (err) err.textContent = 'Ce prénom est déjà pris dans cette partie.'; return; }
       localStorage.setItem('pb_lastName', name);
       localStorage.setItem('pb_avatar', JSON.stringify({emoji:draftEmoji, color:draftColor}));
+      ref.child('lastActivity').set(Date.now());
       enterRoom(pin, name, key);
     });
   }).catch(function(){ setBusy(false,''); showToast('Erreur de connexion.'); });
@@ -562,6 +576,11 @@ function roomSnapshotHandler(snap){
   const val = snap.val();
   if (val === null){
     if (uiScreen === 'room'){ showToast('Cette partie a été fermée.'); goHome(); }
+    return;
+  }
+  const lastAct = val.lastActivity || val.createdAt || 0;
+  if (Date.now() - lastAct > INACTIVITY_MS){
+    if (roomRef) roomRef.remove();
     return;
   }
   state = {
@@ -870,7 +889,8 @@ function handleStartRound(){
   const number = historyList(state).length + 1;
   const revealAt = Date.now() + COUNTDOWN_MS;
   roomRef.update({
-    currentRound: { number: number, letter: letter, revealAt: revealAt, endTime: revealAt + (state.roundDurationMs || 90000) }
+    currentRound: { number: number, letter: letter, revealAt: revealAt, endTime: revealAt + (state.roundDurationMs || 90000) },
+    lastActivity: Date.now()
   }).then(function(){ setBusy(false,''); }).catch(function(){ setBusy(false,''); showToast('Erreur, réessaie.'); });
 }
 function handleNextRound(){
@@ -884,6 +904,7 @@ function handleNextRound(){
   const updates = {};
   updates['history/' + round.number] = round;
   updates['currentRound'] = { number: round.number + 1, letter: letter, revealAt: revealAt, endTime: revealAt + (state.roundDurationMs || 90000) };
+  updates['lastActivity'] = Date.now();
   roomRef.update(updates).then(function(){ setBusy(false,''); }).catch(function(){ setBusy(false,''); showToast('Erreur, réessaie.'); });
 }
 function handleResetScores(){
@@ -905,6 +926,7 @@ function handleFinishRound(){
   if (roomRef && state.currentRound && !state.currentRound.finishedAt){
     roomRef.child('currentRound/finishedAt').transaction(function(cur){ return cur === null ? Date.now() : cur; });
     roomRef.child('currentRound/finishedBy').transaction(function(cur){ return cur === null ? myKey : cur; });
+    roomRef.child('lastActivity').set(Date.now());
   }
   renderTop();
 }
@@ -919,6 +941,7 @@ function handleVote(catIdx, targetKey, value){
   } else {
     roomRef.child(path).set(boolVal);
   }
+  roomRef.child('lastActivity').set(Date.now());
 }
 function handleSaveCategories(){
   const ta = document.getElementById('categories-textarea');
@@ -926,12 +949,12 @@ function handleSaveCategories(){
   const list = ta.value.split('\n').map(function(x){ return x.trim(); }).filter(Boolean);
   if (!list.length) return;
   setBusy(true, 'Enregistrement…');
-  roomRef.child('categories').set(list).then(function(){ setBusy(false,''); closeSheet(); }).catch(function(){ setBusy(false,''); showToast('Erreur.'); });
+  roomRef.update({ categories: list, lastActivity: Date.now() }).then(function(){ setBusy(false,''); closeSheet(); }).catch(function(){ setBusy(false,''); showToast('Erreur.'); });
 }
 function handleSetDuration(ms){
   if (!roomRef) return;
   setBusy(true, '…');
-  roomRef.child('roundDurationMs').set(ms).then(function(){ setBusy(false,''); openSheet(); }).catch(function(){ setBusy(false,''); });
+  roomRef.update({ roundDurationMs: ms, lastActivity: Date.now() }).then(function(){ setBusy(false,''); openSheet(); }).catch(function(){ setBusy(false,''); });
 }
 function submitMyAnswers(){
   if (hasAutoSubmitted || !roomRef) return;
@@ -944,7 +967,10 @@ function submitMyAnswers(){
   const answers = {};
   state.categories.forEach(function(cat, idx){ answers[idx] = (localAnswers[idx] || '').trim(); });
   sessionStorage.setItem(pendingKey(currentPin, round.number), JSON.stringify(answers));
-  roomRef.child('currentRound/answers/' + myKey).set(answers).then(function(){
+  const updates = {};
+  updates['currentRound/answers/' + myKey] = answers;
+  updates['lastActivity'] = Date.now();
+  roomRef.update(updates).then(function(){
     sessionStorage.removeItem(pendingKey(currentPin, round.number));
   }).catch(function(){});
 }
