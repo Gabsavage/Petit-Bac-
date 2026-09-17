@@ -359,6 +359,8 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
 .bottom-sheet.open{transform:translateY(0);}
 .sheet-handle{width:36px;height:4px;background:var(--line-strong);border-radius:100px;margin:6px auto 14px;}
 .sheet-title{font-family:var(--font-display);font-size:1.15rem;margin:0 0 4px;font-weight:700;}
+.sheet-actions{display:flex;flex-direction:column;gap:10px;margin-top:20px;}
+.sheet-links{display:flex;flex-direction:column;gap:4px;text-align:center;margin-top:22px;}
 .duration-choices{display:flex;gap:8px;margin-top:8px;}
 .duration-choices .cta.secondary{width:auto;flex:1;padding:10px;font-size:.88rem;}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
@@ -659,7 +661,8 @@ function icon(name){
     warning: '<path d="M12 3l9.5 17H2.5L12 3z"/><path d="M12 10v4"/><circle cx="12" cy="16.8" r=".6" fill="currentColor" stroke="none"/>',
     chevronLeft: '<path d="M15 18l-6-6 6-6"/>',
     chevronRight: '<path d="M9 6l6 6-6 6"/>',
-    bolt: '<path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/>'
+    bolt: '<path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/>',
+    exit: '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>'
   };
   return '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(paths[name]||'')+'</svg>';
 }
@@ -1293,13 +1296,20 @@ function sheetContentHtml(s){
       const active = (s.maxRounds||0) === mr ? ' active' : '';
       return '<button type="button" class="cta secondary'+active+'" data-action="set-max-rounds" data-mr="'+mr+'">'+label+'</button>';
     }).join('') + '</div>';
-  } else {
-    html += '<p class="muted">Les catégories, la durée et le nombre de manches se règlent avant de lancer une manche.</p>';
+    html += '<div class="sheet-links">' +
+      '<button type="button" class="btn-link" data-action="reset-scores">Remettre les scores à zéro</button>' +
+      '<button type="button" class="btn-link" data-action="leave-room">Quitter la partie</button>' +
+    '</div>';
+    return html;
   }
-  html += '<div style="text-align:center;margin-top:22px;display:flex;flex-direction:column;gap:4px;">' +
-    '<button type="button" class="btn-link" data-action="reset-scores">Réinitialiser les scores de cette partie</button>' +
-    '<button type="button" class="btn-link" data-action="leave-room">Quitter la partie</button>' +
+  /* Hors salon, la feuille ne sert plus qu'à sortir de la partie : on met les deux
+     actions en vrais boutons plutôt qu'en petits liens perdus en bas. */
+  html += '<p class="muted" style="margin:6px 0 0;font-size:.88rem;">Les catégories, la durée et le nombre de manches se règlent dans le salon, avant de lancer une manche.</p>';
+  html += '<div class="sheet-actions">' +
+    '<button type="button" class="cta secondary" data-action="reset-scores">'+icon('flag')+' Terminer la partie</button>' +
+    '<button type="button" class="cta secondary" data-action="leave-room">'+icon('exit')+' Quitter la partie</button>' +
   '</div>';
+  html += '<p class="muted" style="text-align:center;font-size:.78rem;margin:12px 0 0;">Terminer ramène tout le monde au salon, scores remis à zéro. Quitter ne concerne que toi.</p>';
   return html;
 }
 function openSheet(){
@@ -1419,13 +1429,28 @@ function renderTop(){
   document.title = (uiScreen === 'room' && currentPin) ? ('Petit Bac · #'+currentPin) : 'Petit Bac';
   markAppReady();
 }
+/* On retient ce qu'on a désactivé pour le réactiver ensuite. Sans ça, rien ne
+   réactivait jamais : les boutons de #content et #bottom-bar s'en sortaient parce que
+   renderTop() les recrée, mais #menu-btn et #back-btn sont statiques dans le shell et
+   restaient désactivés à vie dès la première action réseau (dès "Création…"), d'où le
+   bouton réglages qui ne répondait plus. Réactiver aveuglément ne marcherait pas non
+   plus : ça ressusciterait les boutons désactivés par le rendu ("Envoyé, en attente…"). */
+let busyDisabled = [];
 function setBusy(isBusy, label){
   const el = document.getElementById('status-line');
   if (el){
     if (label) el.textContent = label;
     el.classList.toggle('show', isBusy && !!label);
   }
-  document.querySelectorAll('.cta, .icon-btn, .btn-link').forEach(function(b){ if (isBusy) b.disabled = true; });
+  if (isBusy){
+    busyDisabled = [];
+    document.querySelectorAll('.cta, .icon-btn, .btn-link').forEach(function(b){
+      if (!b.disabled){ b.disabled = true; busyDisabled.push(b); }
+    });
+  } else {
+    busyDisabled.forEach(function(b){ b.disabled = false; });
+    busyDisabled = [];
+  }
 }
 function showToast(msg){
   const el = document.getElementById('status-line');
@@ -1476,7 +1501,7 @@ function handleNextRound(){
 }
 function handleResetScores(){
   if (!roomRef) return;
-  if (!confirm('Remettre les scores à zéro et repartir de la salle d’attente ?')) return;
+  if (!confirm('Revenir au salon pour tout le monde et remettre les scores à zéro ?')) return;
   setBusy(true, '…');
   roomRef.update({ history: null, currentRound: null }).then(function(){ setBusy(false,''); closeSheet(); }).catch(function(){ setBusy(false,''); showToast('Erreur.'); });
 }
