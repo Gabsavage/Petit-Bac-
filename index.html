@@ -243,6 +243,8 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
 .review-who{flex:1;font-size:.82rem;font-weight:700;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .review-word{margin:0 0 9px;font-weight:700;font-size:1.08rem;word-break:break-word;}
 .review-word.empty{color:var(--invalid);font-style:italic;font-weight:500;}
+.review-word.refused{text-decoration:line-through;color:var(--invalid);}
+.review-note{font-size:.76rem;font-weight:600;font-style:italic;color:var(--invalid);}
 .letter-warn{width:14px;height:14px;color:var(--accent-2-ink);flex-shrink:0;}
 .review-tally{display:inline-flex;align-items:center;gap:3px;font-family:var(--font-mono);font-size:.72rem;color:var(--ink-soft);white-space:nowrap;}
 .review-tally .icon{width:12px;height:12px;}
@@ -426,8 +428,8 @@ const FINISH_GRACE_MS = 5000;
 const DRUMROLL_MS = 1200;
 /* Révélation du podium, en secondes depuis la fin du roulement de tambour :
    3e, puis 2e, puis un temps de suspense plus long avant le 1er, puis les autres joueurs. */
-const PODIUM_DELAYS = { third: 0, second: 0.4, first: 1.05, rest: 1.5 };
-const PODIUM_SETTLE_MS = 1950;
+const PODIUM_DELAYS = { third: 0, second: 0.4, first: 1.05, rest: 2.1 };
+const PODIUM_SETTLE_MS = 2600;
 const SPLASH_MIN_MS = 1300;   /* depuis le départ de l'animation, pour la voir en entier */
 const SPLASH_FONT_WAIT_MS = 600;  /* au-delà, on lance l'animation sans attendre la police */
 const SPLASH_MAX_MS = 3500;
@@ -460,16 +462,14 @@ let hasAutoSubmitted = false;
 let lastPhase = null;
 let lastRoundNumber = null;   /* manche dont l'état local ci-dessus est chargé */
 let lastCountdownLabel = null;
-let viewingLeaderboard = false;
+/* Lecture de l'animation du podium : local, mais déclenché par un horodatage partagé. */
 let podiumRevealed = false;
-let podiumRevealAt = 0;
 let podiumSettled = false;
 let confettiFired = false;
 let splashStart = Date.now();
 let splashAnimStart = 0;
 let splashDone = false;
 let appReady = false;
-let reviewCatIndex = 0;
 let hasRenderedOnce = false;
 
 function esc(str){
@@ -510,6 +510,37 @@ function voteTally(round, catIdx, key){
   Object.keys(votes).forEach(function(v){ if (votes[v] === true) yes++; else if (votes[v] === false) no++; });
   return { yes: yes, no: no };
 }
+/* Une seule lettre (ou rien) ne vaut jamais un point, sans passer par un vote. */
+function tooShort(raw){
+  return normalize(raw).length < 2;
+}
+function levenshtein(a, b){
+  if (a === b) return 0;
+  const m = a.length, n = b.length;
+  let prev = [], cur = [], i, j;
+  for (j = 0; j <= n; j++) prev[j] = j;
+  for (i = 1; i <= m; i++){
+    cur[0] = i;
+    for (j = 1; j <= n; j++){
+      const cost = a.charAt(i-1) === b.charAt(j-1) ? 0 : 1;
+      cur[j] = Math.min(cur[j-1] + 1, prev[j] + 1, prev[j-1] + cost);
+    }
+    prev = cur; cur = [];
+  }
+  return prev[n];
+}
+/* "Hongrie" et "Hongrir", c'est le même pays mal tapé : ça doit compter comme un
+   doublon (1 pt chacun) et non comme deux réponses uniques. La tolérance grandit
+   avec la longueur du mot — sur un mot court, une lettre d'écart change le sens. */
+function sameWord(a, b){
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > 2) return false;
+  /* Seuil calé sur le mot le plus court : sur 3 ou 4 lettres, une lettre d'écart
+     change souvent le mot (riz / ris), alors que sur un mot long c'est une faute. */
+  const minLen = Math.min(a.length, b.length);
+  const tol = minLen >= 7 ? 2 : (minLen >= 4 ? 1 : 0);
+  return tol > 0 && levenshtein(a, b) <= tol;
+}
 function scoreRound(round, keys, categories){
   const perCat = {}; const totals = {};
   const answers = round.answers || {};
@@ -519,15 +550,28 @@ function scoreRound(round, keys, categories){
     keys.forEach(function(k){
       const raw = (answers[k] && answers[k][idx]) || '';
       const n = normalize(raw);
-      if (!n){ norms[k] = null; return; }
+      if (!n || tooShort(raw)){ norms[k] = null; return; }
+      /* Les réponses sont validées par défaut ; on ne vote que pour refuser.
+         La comparaison avec les "oui" reste pour les manches déjà archivées,
+         jouées avec l'ancien écran à deux boutons. */
       const tally = voteTally(round, idx, k);
-      const accepted = !(tally.no > tally.yes);
-      norms[k] = accepted ? n : null;
+      norms[k] = (tally.no > tally.yes) ? null : n;
     });
-    const counts = {};
-    keys.forEach(function(k){ if (norms[k]) counts[norms[k]] = (counts[norms[k]]||0) + 1; });
+    /* Regroupement des réponses identiques, fautes de frappe comprises. */
+    const groups = [];
     keys.forEach(function(k){
-      const pts = norms[k] ? (counts[norms[k]] === 1 ? 2 : 1) : 0;
+      if (!norms[k]) return;
+      for (let i = 0; i < groups.length; i++){
+        if (sameWord(groups[i].word, norms[k])){ groups[i].members.push(k); return; }
+      }
+      groups.push({ word: norms[k], members: [k] });
+    });
+    const groupSize = {};
+    groups.forEach(function(g){
+      g.members.forEach(function(k){ groupSize[k] = g.members.length; });
+    });
+    keys.forEach(function(k){
+      const pts = norms[k] ? (groupSize[k] === 1 ? 2 : 1) : 0;
       perCat[k][idx] = pts;
       totals[k] += pts;
     });
@@ -553,6 +597,21 @@ function cumulativeTotals(s){
     keys.forEach(function(k){ totals[k] += (res.totals[k]||0); });
   });
   return totals;
+}
+/* Position dans la validation et passage au classement : partagés via Firebase pour
+   que tout le monde avance ensemble. L'horodatage leaderboardAt sert de départ commun
+   au roulement de tambour, sinon chacun aurait son podium à un moment différent. */
+function reviewIndexOf(s){
+  const r = s.currentRound;
+  return (r && r.reviewIndex) || 0;
+}
+function showingLeaderboard(s){
+  const r = s.currentRound;
+  return !!(r && r.showLeaderboard);
+}
+function podiumRevealAtOf(s){
+  const r = s.currentRound;
+  return ((r && r.leaderboardAt) || 0) + DRUMROLL_MS;
 }
 function getPhase(s){
   if (!s.currentRound) return 'lobby';
@@ -1011,7 +1070,7 @@ function renderRevealContent(s){
   const res = scoreRound(round, keys, s.categories);
   const answers = round.answers || {};
   const answeredCount = keys.filter(function(k){ return !!answers[k]; }).length;
-  const idx = Math.min(reviewCatIndex, s.categories.length - 1);
+  const idx = Math.min(reviewIndexOf(s), s.categories.length - 1);
   const cat = s.categories[idx];
   let html = '<div class="hero"><div class="letter-badge small">'+esc(round.letter)+'<b class="tile-pts">'+scrabbleValue(round.letter)+'</b></div>' +
     '<p class="section-title">Validation · manche '+round.number+'</p></div>';
@@ -1028,29 +1087,37 @@ function renderRevealContent(s){
         '<span class="review-who">'+who+'</span><span class="review-pts-badge">0</span></div>' +
         '<p class="review-word empty">pas de réponse</p></div>';
     }
+    const badgeCls = pts === 2 ? ' pts-2' : (pts === 1 ? ' pts-1' : '');
+    const badge = '<span class="review-pts-badge'+badgeCls+'">'+(pts?('+'+pts):'0')+'</span>';
+    /* Une lettre seule : refusée d'office, il n'y a rien à voter. */
+    if (tooShort(raw)){
+      return '<div class="review-block"><div class="review-top">' + playerAvatarHtml(s.players[k],'small') +
+        '<span class="review-who">'+who+'</span>' + badge + '</div>' +
+        '<p class="review-word">'+esc(raw)+' <span class="review-note">une seule lettre</span></p></div>';
+    }
     const tally = voteTally(round, idx, k);
     const votesForThis = (((round.votes||{})[idx]||{})[k]) || {};
-    const myVote = votesForThis[myKey];
+    const iRefused = votesForThis[myKey] === false;
+    const refused = tally.no > tally.yes;
     const n = normalize(raw);
     const letterWarn = !(n.length > 0 && n[0] === round.letter.toLowerCase());
-    const badgeCls = pts === 2 ? ' pts-2' : (pts === 1 ? ' pts-1' : '');
     return '<div class="review-block"><div class="review-top">' + playerAvatarHtml(s.players[k],'small') +
       '<span class="review-who">'+who+'</span>' +
-      '<span class="review-tally">'+icon('check')+tally.yes+' '+icon('x')+tally.no+'</span>' +
-      '<span class="review-pts-badge'+badgeCls+'">'+(pts?('+'+pts):'0')+'</span></div>' +
-      '<p class="review-word">'+esc(raw)+(letterWarn?(' <span class="letter-warn" title="Ne commence pas par la lettre du tour">'+icon('warning')+'</span>'):'')+'</p>' +
+      (tally.no ? '<span class="review-tally">'+icon('x')+tally.no+'</span>' : '') +
+      badge + '</div>' +
+      '<p class="review-word'+(refused?' refused':'')+'">'+esc(raw)+(letterWarn?(' <span class="letter-warn" title="Ne commence pas par la lettre du tour">'+icon('warning')+'</span>'):'')+'</p>' +
       '<div class="vote-row">' +
-        '<button type="button" class="vote-btn'+(myVote===true?' active-yes':'')+'" data-action="vote" data-cat="'+idx+'" data-target="'+k+'" data-value="yes">'+icon('check')+'Valide</button>' +
-        '<button type="button" class="vote-btn'+(myVote===false?' active-no':'')+'" data-action="vote" data-cat="'+idx+'" data-target="'+k+'" data-value="no">'+icon('x')+'Invalide</button>' +
+        '<button type="button" class="vote-btn'+(iRefused?' active-no':'')+'" data-action="vote" data-cat="'+idx+'" data-target="'+k+'" data-value="no">' +
+          icon('x') + (iRefused ? 'Tu l’as refusée' : 'Refuser') + '</button>' +
       '</div></div>';
   }).join('');
   html += '</div>';
   if (idx > 0) html += '<div style="text-align:center;"><button type="button" class="btn-link" data-action="review-prev">'+icon('chevronLeft')+'Catégorie précédente</button></div>';
-  html += '<p class="legend">2 pts réponse unique validée · 1 pt en double validée · 0 si refusée par vote ou vide</p>';
+  html += '<p class="legend">Tout compte par défaut : 2 pts si personne n’a le même mot, 1 pt sinon. Refuse une réponse si elle ne va pas.</p>';
   return html;
 }
 function renderRevealBottom(s){
-  const idx = Math.min(reviewCatIndex, s.categories.length - 1);
+  const idx = Math.min(reviewIndexOf(s), s.categories.length - 1);
   if (idx < s.categories.length - 1){
     return '<button type="button" class="cta" data-action="review-next">Suivant '+icon('chevronRight')+'</button>';
   }
@@ -1307,7 +1374,7 @@ function renderTop(){
   } else if (uiScreen === 'room'){
     const phase = roomPhase;
     if (phase !== lastPhase && phase === 'reveal'){
-      viewingLeaderboard = false; podiumRevealed = false; reviewCatIndex = 0;
+      podiumRevealed = false;
       countRoundPlayed(state);
     }
     lastPhase = phase;
@@ -1315,8 +1382,8 @@ function renderTop(){
     if (phase === 'lobby'){ contentHtml = renderLobbyContent(state); bottomHtml = renderLobbyBottom(state); }
     else if (phase === 'countdown'){ contentHtml = renderCountdownContent(); bottomHtml = ''; }
     else if (phase === 'playing'){ contentHtml = renderPlayingContent(state); bottomHtml = renderPlayingBottom(); }
-    else if (viewingLeaderboard && !podiumRevealed){ contentHtml = renderDrumrollContent(state); bottomHtml = ''; }
-    else if (viewingLeaderboard){ contentHtml = renderLeaderboardContent(state); bottomHtml = renderLeaderboardBottom(state); }
+    else if (showingLeaderboard(state) && !podiumRevealed){ contentHtml = renderDrumrollContent(state); bottomHtml = ''; }
+    else if (showingLeaderboard(state)){ contentHtml = renderLeaderboardContent(state); bottomHtml = renderLeaderboardBottom(state); }
     else { contentHtml = renderRevealContent(state); bottomHtml = renderRevealBottom(state); }
   }
   document.getElementById('content').innerHTML = contentHtml;
@@ -1412,6 +1479,19 @@ function handleFinishRound(){
   }
   renderTop();
 }
+function handleReviewStep(delta){
+  if (!roomRef || !state.currentRound) return;
+  const next = Math.max(0, Math.min(reviewIndexOf(state) + delta, state.categories.length - 1));
+  roomRef.update({ 'currentRound/reviewIndex': next, lastActivity: Date.now() });
+}
+function handleShowLeaderboard(){
+  if (!roomRef || !state.currentRound) return;
+  roomRef.update({
+    'currentRound/showLeaderboard': true,
+    'currentRound/leaderboardAt': Date.now(),
+    lastActivity: Date.now()
+  });
+}
 function handleVote(catIdx, targetKey, value){
   if (!roomRef || !myKey || !state.currentRound) return;
   const path = 'currentRound/votes/' + catIdx + '/' + targetKey + '/' + myKey;
@@ -1488,9 +1568,9 @@ function tick(){
   else if (phase === 'countdown'){ updateCountdownUI(); }
   else if (phase === 'reveal' && state.currentRound){
     submitMyAnswers();
-    if (viewingLeaderboard && !podiumRevealed && Date.now() >= podiumRevealAt) revealPodium();
-    else if (viewingLeaderboard && podiumRevealed && !podiumSettled){
-      const since = Date.now() - podiumRevealAt;
+    if (showingLeaderboard(state) && !podiumRevealed && Date.now() >= podiumRevealAtOf(state)) revealPodium();
+    else if (showingLeaderboard(state) && podiumRevealed && !podiumSettled){
+      const since = Date.now() - podiumRevealAtOf(state);
       if (!confettiFired && since >= PODIUM_DELAYS.first * 1000){
         confettiFired = true;
         const isFinal = state.maxRounds > 0 && state.currentRound.number >= state.maxRounds;
@@ -1535,9 +1615,9 @@ document.addEventListener('click', function(e){
   else if (action === 'next-round') handleNextRound();
   else if (action === 'replay-game') handleReplayGame();
   else if (action === 'finish-round') handleFinishRound();
-  else if (action === 'review-next'){ reviewCatIndex = Math.min(reviewCatIndex+1, state.categories.length-1); renderTop(); }
-  else if (action === 'review-prev'){ reviewCatIndex = Math.max(reviewCatIndex-1, 0); renderTop(); }
-  else if (action === 'view-leaderboard'){ viewingLeaderboard = true; podiumRevealed = false; podiumRevealAt = Date.now() + DRUMROLL_MS; renderTop(); }
+  else if (action === 'review-next') handleReviewStep(1);
+  else if (action === 'review-prev') handleReviewStep(-1);
+  else if (action === 'view-leaderboard') handleShowLeaderboard();
   else if (action === 'vote') handleVote(btn.dataset.cat, btn.dataset.target, btn.dataset.value);
   else if (action === 'save-categories') handleSaveCategories();
   else if (action === 'set-duration') handleSetDuration(parseInt(btn.dataset.ms,10));
