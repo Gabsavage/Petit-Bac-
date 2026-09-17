@@ -287,11 +287,22 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
 .podium-step{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;width:98px;}
 .podium-step > .avatar,.podium-step > .podium-name,.podium-step > .podium-score,.podium-step > .podium-block{position:relative;z-index:1;}
 .podium-spotlight{position:absolute;left:50%;top:-18px;width:160px;height:210px;transform:translateX(-50%);
+  transform-origin:top center;
   background:linear-gradient(to bottom,rgba(226,166,58,.62),rgba(226,166,58,.12) 72%,rgba(226,166,58,0));
   clip-path:polygon(36% 0,64% 0,100% 100%,0 100%);z-index:0;pointer-events:none;
   animation:spotlightPulse 2.6s ease-in-out infinite alternate;}
+.podium-spotlight.lights-on{animation:spotOn .45s ease var(--d) both,
+  spotlightPulse 2.6s ease-in-out calc(var(--d) + .45s) infinite alternate;}
 .podium-step.p0 .avatar.big{box-shadow:2px 2px 0 var(--ink),0 0 0 5px rgba(226,166,58,.32);}
-@keyframes spotlightPulse{from{opacity:.7;}to{opacity:1;}}
+@keyframes spotOn{from{opacity:0;transform:translateX(-50%) scaleY(.35);}to{opacity:1;transform:translateX(-50%) scaleY(1);}}
+@keyframes spotlightPulse{from{opacity:1;}to{opacity:.72;}}
+.pod-step-in{animation:podRise .42s cubic-bezier(.2,1.25,.5,1) var(--d) both;}
+@keyframes podRise{from{opacity:0;transform:translateY(28px);}to{opacity:1;transform:translateY(0);}}
+.pod-fade-in{animation:podFade .42s ease var(--d) both;}
+@keyframes podFade{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+@media (prefers-reduced-motion: reduce){
+  .pod-step-in,.pod-fade-in,.podium-spotlight.lights-on{animation:none;}
+}
 .podium-step.empty{visibility:hidden;}
 .podium-step.p0{order:2;}
 .podium-step.p1{order:1;}
@@ -388,7 +399,11 @@ const AVATAR_COLORS = ['#FF6B5B','#FFC94D','#4CE0A0','#5B8DEF','#C77DFF','#FF7AA
 const RING_CIRC = 2 * Math.PI * 52;
 const COUNTDOWN_MS = 3000;
 const FINISH_GRACE_MS = 5000;
-const DRUMROLL_MS = 1800;
+const DRUMROLL_MS = 1200;
+/* Révélation du podium, en secondes depuis la fin du roulement de tambour :
+   3e, puis 2e, puis un temps de suspense plus long avant le 1er, puis les autres joueurs. */
+const PODIUM_DELAYS = { third: 0, second: 0.4, first: 1.05, rest: 1.5 };
+const PODIUM_SETTLE_MS = 1950;
 const SPLASH_MIN_MS = 1300;
 const SPLASH_MAX_MS = 3000;
 const INACTIVITY_MS = 3 * 60 * 1000;
@@ -421,6 +436,8 @@ let lastCountdownLabel = null;
 let viewingLeaderboard = false;
 let podiumRevealed = false;
 let podiumRevealAt = 0;
+let podiumSettled = false;
+let confettiFired = false;
 let splashStart = Date.now();
 let splashDone = false;
 let appReady = false;
@@ -967,17 +984,30 @@ function launchConfetti(count){
 }
 function revealPodium(){
   podiumRevealed = true;
-  const isFinal = state.currentRound && state.maxRounds > 0 && state.currentRound.number >= state.maxRounds;
-  launchConfetti(isFinal ? 60 : 34);
+  podiumSettled = false;
+  confettiFired = false;
   renderTop();
 }
-function renderPodium(s, sorted, totals){
+function podiumDelayFor(pos){
+  if (pos === 0) return PODIUM_DELAYS.first;
+  if (pos === 1) return PODIUM_DELAYS.second;
+  return PODIUM_DELAYS.third;
+}
+function renderPodium(s, sorted, totals, animate){
   const order = [1,0,2];
   let html = '<div class="podium">';
   order.forEach(function(pos){
     const k = sorted[pos];
     if (!k){ html += '<div class="podium-step empty p'+pos+'"></div>'; return; }
-    html += '<div class="podium-step p'+pos+'">' + (pos === 0 ? '<span class="podium-spotlight"></span>' : '') +
+    const stepCls = 'podium-step p' + pos + (animate ? ' pod-step-in' : '');
+    const stepStyle = animate ? ' style="--d:' + podiumDelayFor(pos) + 's"' : '';
+    let spot = '';
+    if (pos === 0){
+      const spotCls = 'podium-spotlight' + (animate ? ' lights-on' : '');
+      const spotStyle = animate ? ' style="--d:' + (PODIUM_DELAYS.first + 0.12) + 's"' : '';
+      spot = '<span class="' + spotCls + '"' + spotStyle + '></span>';
+    }
+    html += '<div class="'+stepCls+'"'+stepStyle+'>' + spot +
       playerAvatarHtml(s.players[k],'big') +
       '<span class="podium-name">'+esc(s.players[k].name)+'</span>' +
       '<span class="podium-score">'+(totals[k]||0)+'</span>' +
@@ -995,19 +1025,25 @@ function renderLeaderboardContent(s){
   const roundWinners = keys.filter(function(k){ return roundMax > 0 && (roundRes.totals[k]||0) === roundMax; });
   const totals = cumulativeTotals(s);
   const sorted = keys.slice().sort(function(a,b){ return (totals[b]||0)-(totals[a]||0); });
+  const animate = !podiumSettled;
+  /* La bannière nomme le vainqueur : elle arrive avec la 1re place, jamais avant. */
+  const bannerCls = 'mvp-banner' + (animate ? ' pod-fade-in' : '');
+  const bannerStyle = animate ? ' style="--d:' + PODIUM_DELAYS.first + 's"' : '';
   let html = '<div class="hero"><p class="section-title">'+(isFinal ? 'Partie terminée !' : 'Classement')+'</p></div>';
   if (isFinal){
     const gameMax = totals[sorted[0]] || 0;
     const gameWinners = sorted.filter(function(k){ return gameMax > 0 && (totals[k]||0) === gameMax; });
     if (gameWinners.length){
-      html += '<p class="mvp-banner">'+icon('trophy')+gameWinners.map(function(k){ return esc(s.players[k].name); }).join(' & ')+' remporte'+(gameWinners.length>1?'nt':'')+' la partie !</p>';
+      html += '<p class="'+bannerCls+'"'+bannerStyle+'>'+icon('trophy')+gameWinners.map(function(k){ return esc(s.players[k].name); }).join(' & ')+' remporte'+(gameWinners.length>1?'nt':'')+' la partie !</p>';
     }
   } else if (roundWinners.length && roundWinners.length < keys.length){
-    html += '<p class="mvp-banner">'+icon('trophy')+roundWinners.map(function(k){ return esc(s.players[k].name); }).join(' & ')+' rafle'+(roundWinners.length>1?'nt':'')+' la manche '+round.number+'</p>';
+    html += '<p class="'+bannerCls+'"'+bannerStyle+'>'+icon('trophy')+roundWinners.map(function(k){ return esc(s.players[k].name); }).join(' & ')+' rafle'+(roundWinners.length>1?'nt':'')+' la manche '+round.number+'</p>';
   }
-  html += renderPodium(s, sorted, totals);
+  html += renderPodium(s, sorted, totals, animate);
   if (sorted.length > 3){
-    html += '<div class="leaderboard-list">' + sorted.slice(3).map(function(k, i){
+    const listCls = 'leaderboard-list' + (animate ? ' pod-fade-in' : '');
+    const listStyle = animate ? ' style="--d:' + PODIUM_DELAYS.rest + 's"' : '';
+    html += '<div class="'+listCls+'"'+listStyle+'>' + sorted.slice(3).map(function(k, i){
       return '<div class="leaderboard-row"><span class="lb-rank">'+(i+4)+'</span>' + playerAvatarHtml(s.players[k],'small') +
         '<span class="lb-name">'+esc(s.players[k].name)+'</span><span class="lb-score">'+(totals[k]||0)+'</span></div>';
     }).join('') + '</div>';
@@ -1122,8 +1158,11 @@ function renderTop(){
   const roomPhase = inRoom ? getPhase(state) : null;
   document.getElementById('menu-btn').hidden = !inRoom || roomPhase === 'lobby';
   document.getElementById('menu-btn').innerHTML = icon('settings');
-  const suspense = inRoom && roomPhase === 'reveal' && viewingLeaderboard && !podiumRevealed;
-  document.getElementById('scoreboard-strip').innerHTML = (inRoom && roomPhase !== 'lobby' && !suspense) ? renderScoreboard(state) : '';
+  /* Pas de bandeau de scores dans le lobby (doublon avec la grille d'avatars) ni sur
+     l'écran de classement : il ferait doublon avec le podium, et surtout il dévoilerait
+     le vainqueur pendant le roulement de tambour et la révélation. */
+  const stripHidden = !inRoom || roomPhase === 'lobby' || (roomPhase === 'reveal' && viewingLeaderboard);
+  document.getElementById('scoreboard-strip').innerHTML = stripHidden ? '' : renderScoreboard(state);
 
   const activeEl = document.activeElement;
   const preserveId = (activeEl && activeEl.id) || null;
@@ -1320,6 +1359,17 @@ function tick(){
   else if (phase === 'reveal' && state.currentRound){
     submitMyAnswers();
     if (viewingLeaderboard && !podiumRevealed && Date.now() >= podiumRevealAt) revealPodium();
+    else if (viewingLeaderboard && podiumRevealed && !podiumSettled){
+      const since = Date.now() - podiumRevealAt;
+      if (!confettiFired && since >= PODIUM_DELAYS.first * 1000){
+        confettiFired = true;
+        const isFinal = state.maxRounds > 0 && state.currentRound.number >= state.maxRounds;
+        launchConfetti(isFinal ? 60 : 34);
+      }
+      /* Une fois la séquence jouée, on retire les classes d'animation : sinon
+         un simple snapshot Firebase relancerait toute la révélation. */
+      if (since >= PODIUM_SETTLE_MS){ podiumSettled = true; renderTop(); }
+    }
   }
 }
 document.addEventListener('visibilitychange', function(){
