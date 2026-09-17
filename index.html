@@ -82,7 +82,7 @@ body{margin:0;background-color:var(--paper);background-image:radial-gradient(var
 }
 .app-bar{position:relative;z-index:1;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:calc(var(--safe-top) + 16px) 18px 8px;}
 .app-bar-title{font-family:var(--font-display);font-weight:700;font-size:1.2rem;display:flex;align-items:center;color:var(--ink);}
-.brand-icon{width:20px;height:20px;margin-right:7px;display:inline-flex;}
+.brand-icon{width:20px;height:20px;margin-right:4px;display:inline-flex;}
 .brand-mark{width:100%;height:100%;display:block;}
 .conn-dot{width:7px;height:7px;border-radius:50%;background:var(--danger);margin-left:8px;}
 .conn-dot.hidden{display:none;}
@@ -137,17 +137,19 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
 .players-grid{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;}
 .chip{display:inline-flex;align-items:center;gap:6px;background:var(--paper-raised);border:1.5px solid var(--ink);
   border-radius:100px;padding:6px 13px;font-size:.82rem;font-weight:600;color:var(--ink);box-shadow:1.5px 1.5px 0 var(--ink);}
-/* Bloc d'accueil centré verticalement : l'espace libre se répartit au-dessus et
-   en dessous, au lieu de laisser un grand vide sous le contenu. */
-.home-screen{min-height:100%;display:flex;flex-direction:column;justify-content:center;padding-bottom:12px;}
-.cover-hero{padding:0 2px 10px;text-align:center;}
+/* Logo posé près du haut, boutons repoussés vers le bas : l'espace libre se
+   retrouve au milieu. L'écart grandit avec l'écran mais reste plafonné, et la
+   hauteur du logo ne dépend pas de ce qu'il y a en dessous — c'est ce qui permet
+   au splash de venir se caler exactement dessus. */
+.home-screen{min-height:100%;display:flex;flex-direction:column;padding:22px 0 34px;}
+.cover-hero{padding:0 2px;text-align:center;}
 .tile-row{display:flex;justify-content:center;gap:7px;margin-bottom:8px;}
 .tile{position:relative;display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:9px;
   font-family:var(--font-display);font-weight:700;font-size:1.5rem;background:var(--paper-raised);color:var(--ink);
   border:1.75px solid var(--ink);box-shadow:2.5px 2.5px 0 var(--ink);}
 .tile-pts{position:absolute;right:3px;bottom:1px;font-family:var(--font-mono);font-size:.5rem;font-weight:700;color:var(--ink-soft);}
 .tagline{font-family:var(--font-display);font-size:1.22rem;margin:26px 0 0;font-weight:700;color:var(--ink);}
-.home-actions{display:flex;flex-direction:column;gap:11px;margin:34px 0 0;}
+.home-actions{display:flex;flex-direction:column;gap:11px;margin-top:auto;}
 .stats-row{display:flex;margin:34px 0 0;}
 .stat{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;border-right:1px solid var(--line);}
 .stat:last-child{border-right:none;}
@@ -173,11 +175,6 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
 .color-choice.selected{box-shadow:0 0 0 2px var(--ink);}
 .ticket-card{background:var(--paper-raised);border:1.75px dashed var(--line-strong);border-radius:16px;padding:10px 14px 8px;text-align:center;}
 .share-block{padding:6px 0 4px;}
-.pin-display{display:flex;justify-content:center;gap:6px;margin:8px 0 14px;}
-.pin-display.small{margin:10px 0;}
-.pin-digit{width:38px;height:46px;border-radius:8px;background:var(--paper-raised);border:1.75px solid var(--ink);
-  display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:700;font-size:1.25rem;
-  color:var(--ink);box-shadow:2.5px 2.5px 0 var(--ink);}
 .qr-canvas{display:flex;justify-content:center;margin:2px auto 12px;}
 .qr-canvas img,.qr-canvas canvas{border-radius:10px;border:1.5px solid var(--line-strong);}
 .lobby-grid{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;padding:8px 0 0;}
@@ -265,15 +262,15 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
 @keyframes drumBounce{from{transform:translateY(0) rotate(-2deg);}to{transform:translateY(-13px) rotate(2deg);}}
 .drum-caption{font-family:var(--font-mono);font-size:.8rem;letter-spacing:.04em;color:var(--ink-soft);margin:0;}
 .fx-layer{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:45;}
-.splash{position:absolute;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  background:var(--paper);transition:opacity .45s ease,visibility .45s ease;}
+.splash{position:absolute;inset:0;z-index:60;background:var(--paper);
+  transition:opacity .45s ease,visibility .45s ease;}
 .splash.hidden{opacity:0;visibility:hidden;pointer-events:none;}
-.splash .tile-row{gap:7px;margin-bottom:8px;}
+/* Centré par défaut ; le JS le recale sur la position réelle du logo de l'accueil. */
+.splash-block{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;}
 /* Les tuiles restent invisibles tant que le JS n'a pas posé .go (une fois la police
    prête) : sinon les délais s'écoulent pendant le chargement et tout apparaît d'un bloc. */
 .splash-tile{width:46px;height:46px;font-size:1.5rem;opacity:0;}
 .splash.go .splash-tile{animation:tileDrop .52s cubic-bezier(.2,1.3,.45,1) calc(var(--i) * .07s) forwards;}
-.splash-tile .tile-pts{font-size:.55rem;}
 @keyframes tileDrop{
   0%{opacity:0;transform:translateY(-30px) scale(.8) rotate(0deg);}
   55%{opacity:1;}
@@ -382,21 +379,23 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
     <div id="sheet-content"></div>
   </div>
   <div id="splash" class="splash">
-    <div class="splash-logo">
+    <!-- Mêmes tailles, mêmes écarts et mêmes rotations que renderLogoTiles() : au
+         fondu du splash, le logo de l'accueil se retrouve exactement au même endroit. -->
+    <div id="splash-block" class="splash-block">
       <div class="tile-row">
-        <span class="tile splash-tile" style="--i:0;--rot:-3deg">P<b class="tile-pts">3</b></span>
-        <span class="tile splash-tile" style="--i:1;--rot:2deg">E<b class="tile-pts">1</b></span>
+        <span class="tile splash-tile" style="--i:0;--rot:-2deg">P<b class="tile-pts">3</b></span>
+        <span class="tile splash-tile" style="--i:1;--rot:1deg">E<b class="tile-pts">1</b></span>
         <span class="tile splash-tile" style="--i:2;--rot:-1deg">T<b class="tile-pts">1</b></span>
         <span class="tile splash-tile" style="--i:3;--rot:2deg">I<b class="tile-pts">1</b></span>
-        <span class="tile splash-tile" style="--i:4;--rot:-2deg">T<b class="tile-pts">1</b></span>
+        <span class="tile splash-tile" style="--i:4;--rot:-1deg">T<b class="tile-pts">1</b></span>
       </div>
       <div class="tile-row">
-        <span class="tile splash-tile" style="--i:5;--rot:3deg">B<b class="tile-pts">3</b></span>
+        <span class="tile splash-tile" style="--i:5;--rot:1deg">B<b class="tile-pts">3</b></span>
         <span class="tile splash-tile" style="--i:6;--rot:-2deg">A<b class="tile-pts">1</b></span>
-        <span class="tile splash-tile" style="--i:7;--rot:2deg">C<b class="tile-pts">3</b></span>
+        <span class="tile splash-tile" style="--i:7;--rot:-2deg">C<b class="tile-pts">3</b></span>
       </div>
+      <p class="splash-by">by Gabriel</p>
     </div>
-    <p class="splash-by">by Gabriel</p>
   </div>
 </div>
 
@@ -440,6 +439,7 @@ let roomRef = null;
 let homeGamesRef = null;
 let lastPublicSnapshot = null;
 let draftPin = '';
+let joinHostName = '';
 let draftName = localStorage.getItem('pb_lastName') || '';
 let draftEmoji = AVATAR_EMOJIS[0];
 let draftColor = AVATAR_COLORS[0];
@@ -662,7 +662,7 @@ function updateBestScore(s){
 /* ---------- home ---------- */
 function renderHomeContent(){
   let html = '<div class="home-screen"><div class="cover-hero">' + renderLogoTiles() +
-    '<p class="tagline">Entre potes, à distance</p></div>';
+    '<p class="tagline">Le petit bac, sans le papier</p></div>';
   html += '<div class="home-actions">' +
     '<button type="button" class="cta" data-action="go-create">'+icon('plus')+' Créer une partie</button>' +
     '<button type="button" class="cta secondary" data-action="open-join">'+icon('users')+' Rejoindre une partie</button>' +
@@ -745,14 +745,23 @@ function renderCreateContent(){
   return html;
 }
 function renderJoinContent(){
-  let html = '<div class="join-hero"><h2>Rejoindre une partie</h2>';
+  /* Le code ne se saisit plus nulle part (QR ou liste uniquement) : l'afficher ici
+     n'apprenait rien et donnait l'impression qu'il fallait en faire quelque chose.
+     On nomme la partie rejointe à la place. */
+  const title = joinHostName ? ('Partie de ' + esc(joinHostName)) : 'Rejoindre une partie';
+  let html = '<div class="join-hero"><h2>' + title + '</h2>';
   html += '<div id="avatar-picker">' + renderAvatarPickerInner() + '</div>';
   html += '<form id="join-form">';
   html += '<input id="name-input" class="field-line" type="text" placeholder="Ton prénom" maxlength="20" autocomplete="off" value="'+esc(draftName)+'">';
-  html += '<div class="pin-display small">' + draftPin.split('').map(function(d){ return '<span class="pin-digit">'+esc(d)+'</span>'; }).join('') + '</div>';
   html += '</form>';
   html += '<p id="join-error" class="error"></p></div>';
   return html;
+}
+function fetchJoinHost(pin){
+  db.ref('games/' + pin + '/hostName').once('value').then(function(snap){
+    const name = snap.val();
+    if (name && uiScreen === 'join' && draftPin === pin){ joinHostName = name; renderTop(); }
+  }).catch(function(){});
 }
 function handleConfirmCreate(){
   const nameInput = document.getElementById('name-input');
@@ -1490,7 +1499,12 @@ document.addEventListener('click', function(e){
   else if (action === 'go-home'){ uiScreen = 'home'; attachHomeListener(); renderTop(); }
   else if (action === 'refresh-public-games') handleRefreshPublicGames();
   else if (action === 'open-join') openJoinSheet();
-  else if (action === 'quick-join'){ draftPin = btn.dataset.pin; closeSheet(); detachHomeListener(); uiScreen = 'join'; renderTop(); }
+  else if (action === 'quick-join'){
+    draftPin = btn.dataset.pin;
+    const g = lastPublicSnapshot && lastPublicSnapshot[draftPin];
+    joinHostName = (g && g.hostName) || '';
+    closeSheet(); detachHomeListener(); uiScreen = 'join'; renderTop();
+  }
   else if (action === 'pick-emoji'){ draftEmoji = btn.dataset.emoji; refreshAvatarPicker(); }
   else if (action === 'pick-color'){ draftColor = btn.dataset.color; refreshAvatarPicker(); }
   else if (action === 'start-round') handleStartRound();
@@ -1529,8 +1543,23 @@ function hideSplash(){
   const el = document.getElementById('splash');
   if (el) el.classList.add('hidden');
 }
+/* Cale le bloc du splash sur le logo de l'accueil, déjà rendu derrière lui : au
+   fondu, les tuiles ne bougent pas d'un pixel. Mesuré plutôt que recopié en dur,
+   pour ne pas casser au moindre changement de gabarit. Sans cible (arrivée
+   directe dans une partie via un lien), le bloc reste centré. */
+function alignSplashToHome(){
+  const splash = document.getElementById('splash');
+  const block = document.getElementById('splash-block');
+  const target = document.querySelector('#content .cover-hero .tile-row');
+  if (!splash || !block || !target) return;
+  const t = target.getBoundingClientRect();
+  if (!t.height) return;
+  block.style.top = Math.round(t.top - splash.getBoundingClientRect().top) + 'px';
+  block.style.transform = 'none';
+}
 function startSplashAnimation(){
   if (splashAnimStart) return;
+  alignSplashToHome();
   splashAnimStart = Date.now();
   const el = document.getElementById('splash');
   if (el) el.classList.add('go');
@@ -1584,8 +1613,10 @@ function markAppReady(){
       } catch(e){}
     }
     draftPin = pinParam;
+    joinHostName = '';
     uiScreen = 'join';
     renderTop();
+    fetchJoinHost(pinParam);   /* arrivée par QR ou lien : on ne connaît pas encore l'hôte */
     return;
   }
   uiScreen = 'home';
