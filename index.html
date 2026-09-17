@@ -137,11 +137,11 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
 .players-grid{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;}
 .chip{display:inline-flex;align-items:center;gap:6px;background:var(--paper-raised);border:1.5px solid var(--ink);
   border-radius:100px;padding:6px 13px;font-size:.82rem;font-weight:600;color:var(--ink);box-shadow:1.5px 1.5px 0 var(--ink);}
-/* Logo posé près du haut, boutons repoussés vers le bas : l'espace libre se
-   retrouve au milieu. L'écart grandit avec l'écran mais reste plafonné, et la
-   hauteur du logo ne dépend pas de ce qu'il y a en dessous — c'est ce qui permet
-   au splash de venir se caler exactement dessus. */
-.home-screen{min-height:100%;display:flex;flex-direction:column;padding:22px 0 34px;}
+/* Bloc centré verticalement, avec un écart franc entre le logo et les boutons.
+   La hauteur du logo dépend donc de ce qu'il y a en dessous (le bloc de stats
+   est là ou non) : c'est sans conséquence, le splash mesure sa cible au moment
+   de se caler plutôt que de supposer une position fixe. */
+.home-screen{min-height:100%;display:flex;flex-direction:column;justify-content:center;padding:16px 0;}
 .cover-hero{padding:0 2px;text-align:center;}
 .tile-row{display:flex;justify-content:center;gap:7px;margin-bottom:8px;}
 .tile{position:relative;display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:9px;
@@ -149,7 +149,7 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
   border:1.75px solid var(--ink);box-shadow:2.5px 2.5px 0 var(--ink);}
 .tile-pts{position:absolute;right:3px;bottom:1px;font-family:var(--font-mono);font-size:.5rem;font-weight:700;color:var(--ink-soft);}
 .tagline{font-family:var(--font-display);font-size:1.22rem;margin:26px 0 0;font-weight:700;color:var(--ink);}
-.home-actions{display:flex;flex-direction:column;gap:11px;margin-top:auto;}
+.home-actions{display:flex;flex-direction:column;gap:11px;margin-top:clamp(48px,20vh,170px);}
 .stats-row{display:flex;margin:34px 0 0;}
 .stat{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;border-right:1px solid var(--line);}
 .stat:last-child{border-right:none;}
@@ -1575,7 +1575,12 @@ function whenDisplayFontReady(cb){
   const link = document.getElementById('font-css');
   const loadFace = function(){
     if (document.fonts && document.fonts.load){
-      document.fonts.load('700 1.5rem Fraunces').then(cb, cb);
+      /* Fraunces explicitement (c'est elle qu'on voit tomber), puis fonts.ready pour
+         les autres : le bloc d'accueil étant centré, une police qui arrive en retard
+         en changerait la hauteur totale et décalerait le logo sous le splash. */
+      document.fonts.load('700 1.5rem Fraunces')
+        .then(function(){ return document.fonts.ready; })
+        .then(cb, cb);
     } else {
       cb();
     }
