@@ -696,8 +696,28 @@ function levenshtein(a, b){
 /* "Hongrie" et "Hongrir", c'est le même pays mal tapé : ça doit compter comme un
    doublon (1 pt chacun) et non comme deux réponses uniques. La tolérance grandit
    avec la longueur du mot — sur un mot court, une lettre d'écart change le sens. */
+/* Abréviations : « foot » et « football », c'est le même sport, mais l'écart de
+   longueur dépasse de loin la tolérance aux fautes de frappe. On accepte donc
+   qu'un mot soit le début de l'autre, sous trois conditions qui évitent les
+   fusions absurdes :
+   - même nombre de mots, sinon « football » avalerait « football américain » ;
+   - au moins 4 lettres dans le plus court, pour écarter « car »/« carotte » ;
+   - au moins 3 lettres d'écart, pour écarter « ours »/« oursin » et « chat »/« chaton ».
+   Il reste des faux positifs théoriques (« train »/« traineau », « porc »/« porcelet »),
+   mais la comparaison ne se fait qu'à l'intérieur d'une même catégorie, ce qui
+   rend la collision rare en pratique. */
+function wordCount(str){
+  return str.split(/\s+/).filter(Boolean).length;
+}
+function isAbbrevOf(short, long){
+  if (short.length < 4) return false;
+  if (long.length - short.length < 3) return false;   /* négatif si short est le plus long */
+  if (long.indexOf(short) !== 0) return false;
+  return wordCount(short) === wordCount(long);
+}
 function sameWord(a, b){
   if (a === b) return true;
+  if (isAbbrevOf(a, b) || isAbbrevOf(b, a)) return true;
   if (Math.abs(a.length - b.length) > 2) return false;
   /* Seuil calé sur le mot le plus court : sur 3 ou 4 lettres, une lettre d'écart
      change souvent le mot (riz / ris), alors que sur un mot long c'est une faute. */

@@ -57,6 +57,7 @@ La base Firebase utilisée est celle de prod (projet `petit-bac-c24bf`) — test
 - Une réponse d'**une seule lettre** vaut 0 automatiquement, sans passer par un vote
 - Les **fautes de frappe** comptent comme des doublons : "Hongrie" et "Hongrir" donnent 1 pt chacun et non 2 réponses uniques (distance de Levenshtein, seuil proportionnel à la longueur du mot)
 - Les **articles** en tête de réponse sont ignorés : "Une Ferrari" et "Ferrari" sont le même mot, et c'est le F qui compte pour la lettre du tour
+- Les **abréviations** comptent comme des doublons : "Foot" et "Football" donnent 1 pt chacun. "Football américain" reste une réponse à part, un mot en plus n'est pas une abréviation
 - Une lettre déjà tirée ne peut pas revenir avant **13 tirages**, y compris après un "Rejouer"
 - Les catégories sont tirées au sort à la création de la partie et à chaque retour au salon, avec au plus deux catégories de la même famille — et restent modifiables dans les réglages avant le lancement
 
