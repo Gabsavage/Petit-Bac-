@@ -112,7 +112,7 @@ Les **règles du match** (nombre de manches, durée) sont affichées en deux pas
 Le fond est en deux morceaux, et c'est délibéré :
 
 - **Le papier réglé est dessiné en CSS** (`.paper-doodles`, deux dégradés : la marge rouge et un `repeating-linear-gradient` pour les lignes). Il ne coûte rien, reste droit, se recolore avec le thème et s'adapte à n'importe quelle hauteur d'écran.
-- **Les griffonnages sont 26 masques** dans `bg/d/` (82 Ko au total), détourés des images générées par ChatGPT. Ce sont des PNG en niveaux de gris + alpha, posés en `mask-image` sur un `<span>` dont la `background-color` est `--doodle-ink` : **un seul fichier sert aux deux thèmes**, seule la couleur change.
+- **Les griffonnages sont 26 masques** dans `bg/d/` (82 Ko au total), détourés des images générées par ChatGPT. Ce sont des PNG en niveaux de gris + alpha, posés en `mask-image` sur un `<span>` dont la `background-color` est `--doodle-ink` : **un seul fichier sert aux deux thèmes**, seule la couleur change — bic bleu sur le papier clair, crème sur la page sombre (le bleu y virait au terne, la craie sur ardoise marche bien mieux).
 
 Ils ont d'abord été intégrés comme huit images de fond pleine page (une par écran et par thème, 273 Ko). Ça ne marchait pas, pour une raison qui vaut d'être retenue : **une composition figée ne connaît pas la mise en page**. Le brief de génération disait « dessins dans les coins, centre vide », alors que l'app met son contenu au centre et son châssis dans les coins — donc les dessins tombaient sous le bandeau et les boutons pendant que le milieu restait désespérément vide. Et une image calée sur un écran de 844pt tombe à côté sur un téléphone plus haut.
 
