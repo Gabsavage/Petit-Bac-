@@ -239,8 +239,9 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
 .cat-dot.done{background:var(--ink-soft);}
 .review-block{padding:11px 0;border-bottom:1px solid var(--line);}
 .review-block:last-child{border-bottom:none;}
-.review-top{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
-.review-word{flex:1;font-weight:700;font-size:1.05rem;}
+.review-top{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.review-who{flex:1;font-size:.82rem;font-weight:700;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.review-word{margin:0 0 9px;font-weight:700;font-size:1.08rem;word-break:break-word;}
 .review-word.empty{color:var(--invalid);font-style:italic;font-weight:500;}
 .letter-warn{width:14px;height:14px;color:var(--accent-2-ink);flex-shrink:0;}
 .review-tally{display:inline-flex;align-items:center;gap:3px;font-family:var(--font-mono);font-size:.72rem;color:var(--ink-soft);white-space:nowrap;}
@@ -457,6 +458,7 @@ let localAnswers = {};
 let locked = false;
 let hasAutoSubmitted = false;
 let lastPhase = null;
+let lastRoundNumber = null;   /* manche dont l'état local ci-dessus est chargé */
 let lastCountdownLabel = null;
 let viewingLeaderboard = false;
 let podiumRevealed = false;
@@ -845,6 +847,7 @@ function enterRoom(pin, name, key){
   detachHomeListener();
   hasRenderedOnce = false;
   lastPhase = null;
+  lastRoundNumber = null;
   hasAutoSubmitted = false;
   locked = false;
   localAnswers = {};
@@ -890,17 +893,35 @@ function roomSnapshotHandler(snap){
     currentRound: val.currentRound || null,
     history: val.history || {}
   };
+  const roundChanged = syncRoundLocalState();
   const phase = getPhase(state);
-  if (!hasRenderedOnce || phase !== 'playing'){ renderTop(); }
-  if (!hasRenderedOnce && state.currentRound){
-    cleanupOldRoundStorage(currentPin, state.currentRound.number);
-    const draft = sessionStorage.getItem(draftKey(currentPin, state.currentRound.number));
-    if (draft){ try { localAnswers = JSON.parse(draft); } catch(e){} }
-    locked = sessionStorage.getItem(lockedKey(currentPin, state.currentRound.number)) === '1';
-  }
-  if (!hasRenderedOnce) attemptPendingSubmit();
+  /* On ne re-rend pas pendant qu'on joue, pour ne pas effacer la saisie en cours —
+     mais uniquement tant qu'on reste sur la même manche : si la manche a changé,
+     l'affichage doit repartir de zéro même si on est déjà en phase de jeu. */
+  if (!hasRenderedOnce || roundChanged || phase !== 'playing'){ renderTop(); }
   if (phase === 'reveal') submitMyAnswers();
   hasRenderedOnce = true;
+}
+/* Réponses saisies, verrou "j'ai fini" et drapeau d'envoi sont propres à UNE manche.
+   Ils n'étaient remis à zéro qu'à l'entrée dans la partie : à la manche suivante on
+   retrouvait donc ses réponses précédentes, grisées pour qui avait fini le premier,
+   et surtout submitMyAnswers() ressortait aussitôt — plus aucune réponse n'était
+   envoyée dès la 2e manche. On les resynchronise à chaque changement de manche. */
+function syncRoundLocalState(){
+  const roundNo = state.currentRound ? state.currentRound.number : null;
+  if (roundNo === lastRoundNumber) return false;
+  lastRoundNumber = roundNo;
+  localAnswers = {};
+  locked = false;
+  hasAutoSubmitted = false;
+  if (roundNo === null) return true;
+  /* Rechargement en cours de manche (onglet rouvert) : on récupère le brouillon. */
+  cleanupOldRoundStorage(currentPin, roundNo);
+  const draft = sessionStorage.getItem(draftKey(currentPin, roundNo));
+  if (draft){ try { localAnswers = JSON.parse(draft); } catch(e){} }
+  locked = sessionStorage.getItem(lockedKey(currentPin, roundNo)) === '1';
+  attemptPendingSubmit();
+  return true;
 }
 
 /* ---------- room content: lobby ---------- */
@@ -1001,9 +1022,11 @@ function renderRevealContent(s){
   html += keys.map(function(k){
     const raw = (answers[k] && answers[k][idx]) || '';
     const pts = res.perCat[k][idx];
+    const who = esc(s.players[k].name) + (k === myKey ? ' (toi)' : '');
     if (!raw){
       return '<div class="review-block"><div class="review-top">' + playerAvatarHtml(s.players[k],'small') +
-        '<span class="review-word empty">pas de réponse</span><span class="review-pts-badge">0</span></div></div>';
+        '<span class="review-who">'+who+'</span><span class="review-pts-badge">0</span></div>' +
+        '<p class="review-word empty">pas de réponse</p></div>';
     }
     const tally = voteTally(round, idx, k);
     const votesForThis = (((round.votes||{})[idx]||{})[k]) || {};
@@ -1012,9 +1035,10 @@ function renderRevealContent(s){
     const letterWarn = !(n.length > 0 && n[0] === round.letter.toLowerCase());
     const badgeCls = pts === 2 ? ' pts-2' : (pts === 1 ? ' pts-1' : '');
     return '<div class="review-block"><div class="review-top">' + playerAvatarHtml(s.players[k],'small') +
-      '<span class="review-word">'+esc(raw)+(letterWarn?(' <span class="letter-warn" title="Ne commence pas par la lettre du tour">'+icon('warning')+'</span>'):'')+'</span>' +
+      '<span class="review-who">'+who+'</span>' +
       '<span class="review-tally">'+icon('check')+tally.yes+' '+icon('x')+tally.no+'</span>' +
       '<span class="review-pts-badge'+badgeCls+'">'+(pts?('+'+pts):'0')+'</span></div>' +
+      '<p class="review-word">'+esc(raw)+(letterWarn?(' <span class="letter-warn" title="Ne commence pas par la lettre du tour">'+icon('warning')+'</span>'):'')+'</p>' +
       '<div class="vote-row">' +
         '<button type="button" class="vote-btn'+(myVote===true?' active-yes':'')+'" data-action="vote" data-cat="'+idx+'" data-target="'+k+'" data-value="yes">'+icon('check')+'Valide</button>' +
         '<button type="button" class="vote-btn'+(myVote===false?' active-no':'')+'" data-action="vote" data-cat="'+idx+'" data-target="'+k+'" data-value="no">'+icon('x')+'Invalide</button>' +
@@ -1261,10 +1285,10 @@ function renderTop(){
   const roomPhase = inRoom ? getPhase(state) : null;
   document.getElementById('menu-btn').hidden = !inRoom || roomPhase === 'lobby';
   document.getElementById('menu-btn').innerHTML = icon('settings');
-  /* Pas de bandeau de scores dans le lobby (doublon avec la grille d'avatars) ni sur
-     l'écran de classement : il ferait doublon avec le podium, et surtout il dévoilerait
-     le vainqueur pendant le roulement de tambour et la révélation. */
-  const stripHidden = !inRoom || roomPhase === 'lobby' || (roomPhase === 'reveal' && viewingLeaderboard);
+  /* Pas de bandeau de scores dans le lobby (doublon avec la grille d'avatars) ni pendant
+     toute la phase de révélation : les totaux y intègrent déjà la manche en cours et
+     bougent à chaque vote, ce qui annonce le résultat avant la validation et le podium. */
+  const stripHidden = !inRoom || roomPhase === 'lobby' || roomPhase === 'reveal';
   document.getElementById('scoreboard-strip').innerHTML = stripHidden ? '' : renderScoreboard(state);
 
   const activeEl = document.activeElement;
