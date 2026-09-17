@@ -81,7 +81,9 @@ body{margin:0;background-color:var(--paper);background-image:radial-gradient(var
   #app-shell::before{border-radius:20px 20px 0 0;}
 }
 .app-bar{position:relative;z-index:1;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:calc(var(--safe-top) + 16px) 18px 8px;}
-.app-bar-title{font-family:var(--font-display);font-weight:700;font-size:1.2rem;display:flex;align-items:center;color:var(--ink);}
+/* flex:1 pour que le titre garde sa place quel que soit le nombre de boutons visibles :
+   avec space-between seul, il partait à droite dès qu'il n'y avait que le bouton retour. */
+.app-bar-title{flex:1;font-family:var(--font-display);font-weight:700;font-size:1.2rem;display:flex;align-items:center;color:var(--ink);}
 .brand-icon{width:20px;height:20px;margin-right:4px;display:inline-flex;}
 .brand-mark{width:100%;height:100%;display:block;}
 .conn-dot{width:7px;height:7px;border-radius:50%;background:var(--danger);margin-left:8px;}
@@ -359,6 +361,13 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
 .bottom-sheet.open{transform:translateY(0);}
 .sheet-handle{width:36px;height:4px;background:var(--line-strong);border-radius:100px;margin:6px auto 14px;}
 .sheet-title{font-family:var(--font-display);font-size:1.15rem;margin:0 0 4px;font-weight:700;}
+/* Avatar en guise de bouton : il occupe toute la pastille, sans bordure en double. */
+.icon-btn.has-avatar{border-color:transparent;background:none;}
+.icon-btn.has-avatar .avatar.small{width:30px;height:30px;font-size:.92rem;}
+.friend-list{display:flex;flex-direction:column;gap:6px;margin-top:4px;}
+.friend-row{display:flex;align-items:center;gap:10px;background:var(--paper-raised);
+  border:1.5px solid var(--line-strong);border-radius:11px;padding:7px 8px 7px 12px;}
+.friend-name{flex:1;font-size:.9rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .sheet-actions{display:flex;flex-direction:column;gap:10px;margin-top:20px;}
 .sheet-links{display:flex;flex-direction:column;gap:4px;text-align:center;margin-top:22px;}
 .duration-choices{display:flex;gap:8px;margin-top:8px;}
@@ -371,6 +380,7 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
   <div class="app-bar">
     <button type="button" id="back-btn" class="icon-btn" data-action="go-home" aria-label="Retour" hidden></button>
     <span class="app-bar-title"><span id="brand-icon" class="brand-icon"></span>Petit Bac<span id="conn-dot" class="conn-dot hidden"></span></span>
+    <button type="button" id="profile-btn" class="icon-btn" data-action="open-profile" aria-label="Ton profil" hidden></button>
     <button type="button" id="menu-btn" class="icon-btn" data-action="open-menu" aria-label="Réglages" hidden></button>
   </div>
   <div id="scoreboard-strip" class="scoreboard-strip"></div>
@@ -422,6 +432,7 @@ const db = firebase.database();
 
 const LETTER_POOL = ['A','B','C','D','E','F','G','H','I','J','L','M','N','O','P','R','S','T','V'];
 const RECENT_LETTERS_MAX = 13;   /* sur 19 lettres, il en reste toujours 6 tirables */
+const FRIENDS_MAX = 24;
 const DEFAULT_CATEGORIES = ["Prénom","Pays / Villes","Métiers","Célébrité","Marque","Animal","Partie du corps","Nourriture"];
 const AVATAR_EMOJIS = ['😀','😎','🤠','🥳','🤖','👻','🐶','🐱','🦊','🐻','🐼','🐸','🦁','🐵','🦄','🐙','🦖','🐧','🐰','🦉','🐢','🦋','🐝','🍕'];
 const AVATAR_COLORS = ['#FF6B5B','#FFC94D','#4CE0A0','#5B8DEF','#C77DFF','#FF7AA8','#4DD4E8','#F2A65A'];
@@ -662,7 +673,9 @@ function icon(name){
     chevronLeft: '<path d="M15 18l-6-6 6-6"/>',
     chevronRight: '<path d="M9 6l6 6-6 6"/>',
     bolt: '<path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/>',
-    exit: '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>'
+    exit: '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
+    user: '<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+    trash: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/>'
   };
   return '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(paths[name]||'')+'</svg>';
 }
@@ -708,6 +721,63 @@ function refreshAvatarPicker(){
   if (el) el.innerHTML = renderAvatarPickerInner();
 }
 
+/* ---------- profil et amis (par appareil, jamais synchronisés) ---------- */
+function readProfile(){
+  try {
+    const p = JSON.parse(localStorage.getItem('pb_profile') || 'null');
+    if (p && p.name){
+      return { name: p.name, emoji: p.emoji || AVATAR_EMOJIS[0], color: p.color || AVATAR_COLORS[0] };
+    }
+  } catch(e){}
+  /* Ancien format : prénom et avatar stockés séparément par les écrans de création
+     et de participation. On le relit pour que les joueurs déjà passés par là aient
+     un profil tout prêt au lieu de repartir de zéro. */
+  const name = localStorage.getItem('pb_lastName') || '';
+  if (!name) return null;
+  let emoji = AVATAR_EMOJIS[0], color = AVATAR_COLORS[0];
+  try {
+    const saved = JSON.parse(localStorage.getItem('pb_avatar') || 'null');
+    if (saved){ emoji = saved.emoji || emoji; color = saved.color || color; }
+  } catch(e){}
+  return { name: name, emoji: emoji, color: color };
+}
+function writeProfile(p){
+  try {
+    localStorage.setItem('pb_profile', JSON.stringify(p));
+    /* On continue d'alimenter les anciennes clés : elles servent encore de valeurs
+       par défaut aux écrans de création et de participation. */
+    localStorage.setItem('pb_lastName', p.name);
+    localStorage.setItem('pb_avatar', JSON.stringify({ emoji: p.emoji, color: p.color }));
+  } catch(e){}
+}
+function readFriends(){
+  try {
+    const list = JSON.parse(localStorage.getItem('pb_friends') || 'null');
+    if (list && list.length) return list.filter(function(f){ return f && f.key && f.name; });
+  } catch(e){}
+  return [];
+}
+function writeFriends(list){
+  try { localStorage.setItem('pb_friends', JSON.stringify(list)); } catch(e){}
+}
+/* Appelée une fois par manche, en même temps que les stats : tous ceux qui sont dans
+   la partie entrent dans la liste. Pas de synchro, pas de demande d'ajout — c'est une
+   mémoire locale des gens avec qui on a joué. */
+function recordFriends(s){
+  if (!myKey) return;
+  const byKey = {};
+  readFriends().forEach(function(f){ byKey[f.key] = f; });
+  const now = Date.now();
+  Object.keys(s.players).forEach(function(k){
+    if (k === myKey) return;
+    const p = s.players[k];
+    byKey[k] = { key: k, name: p.name, emoji: p.emoji, color: p.color, lastSeen: now };
+  });
+  const next = Object.keys(byKey).map(function(k){ return byKey[k]; });
+  next.sort(function(a, b){ return (b.lastSeen || 0) - (a.lastSeen || 0); });
+  writeFriends(next.slice(0, FRIENDS_MAX));
+}
+
 /* ---------- stats locales (par appareil, jamais synchronisées) ---------- */
 function readStats(){
   try {
@@ -730,6 +800,7 @@ function countRoundPlayed(s){
   st.rounds += 1;
   st.letter = s.currentRound.letter || st.letter;
   writeStats(st);
+  recordFriends(s);
 }
 function updateBestScore(s){
   if (!s.currentRound || !myKey || !s.players[myKey]) return;
@@ -758,6 +829,26 @@ function renderHomeStats(){
   html += '<div class="stat"><span class="stat-value">'+st.best+'</span><span class="stat-label">record</span></div>';
   if (st.letter) html += '<div class="stat"><span class="stat-value">'+esc(st.letter)+'</span><span class="stat-label">dernière lettre</span></div>';
   return html + '</div>';
+}
+function profileSheetHtml(){
+  const friends = readFriends();
+  let html = '<h3 class="sheet-title">Ton profil</h3>';
+  html += '<p class="muted" style="margin:4px 0 14px;font-size:.85rem;">Configuré une fois, réutilisé à chaque partie.</p>';
+  html += '<div id="avatar-picker">' + renderAvatarPickerInner() + '</div>';
+  html += '<input id="profile-name" class="field-line" type="text" placeholder="Ton prénom" maxlength="20" autocomplete="off" value="'+esc(draftName)+'">';
+  html += '<p id="profile-error" class="error" style="text-align:center;"></p>';
+  html += '<button type="button" class="cta" data-action="save-profile" style="margin-top:6px;">Enregistrer</button>';
+  html += '<p class="section-heading">Amis</p>';
+  if (!friends.length){
+    html += '<p class="muted" style="font-size:.85rem;margin:0;">Les joueurs que tu croises en partie s’ajoutent ici automatiquement.</p>';
+  } else {
+    html += '<div class="friend-list">' + friends.map(function(f){
+      return '<div class="friend-row">' + playerAvatarHtml(f, 'small') +
+        '<span class="friend-name">'+esc(f.name)+'</span>' +
+        '<button type="button" class="icon-btn small" data-action="remove-friend" data-key="'+esc(f.key)+'" aria-label="Retirer '+esc(f.name)+'">'+icon('trash')+'</button></div>';
+    }).join('') + '</div>';
+  }
+  return html;
 }
 function joinSheetHtml(){
   let html = '<div class="section-heading-row" style="margin-top:2px;justify-content:space-between;">' +
@@ -843,12 +934,20 @@ function fetchJoinHost(pin){
     if (name && uiScreen === 'join' && draftPin === pin){ joinHostName = name; renderTop(); }
   }).catch(function(){});
 }
-function handleConfirmCreate(){
-  const nameInput = document.getElementById('name-input');
-  const name = (nameInput ? nameInput.value : '').trim();
+/* Le nom vient du champ quand l'écran est affiché, du profil quand on l'a court-circuité. */
+function draftNameValue(){
+  const input = document.getElementById('name-input');
+  return (input ? input.value : draftName).trim();
+}
+function showJoinError(msg){
   const err = document.getElementById('join-error');
-  if (!name){ if (err) err.textContent = 'Choisis un prénom.'; return; }
-  if (err) err.textContent = '';
+  if (err) err.textContent = msg;
+  else showToast(msg);
+}
+function handleConfirmCreate(){
+  const name = draftNameValue();
+  if (!name){ showJoinError('Choisis un prénom.'); return; }
+  showJoinError('');
   setBusy(true, 'Création…');
   attemptCreatePin(0, name);
 }
@@ -878,25 +977,30 @@ function attemptCreatePin(tries, name){
     if (err){ setBusy(false,''); showToast('Erreur, réessaie.'); return; }
     if (!committed){ attemptCreatePin(tries+1, name); return; }
     setBusy(false,'');
-    localStorage.setItem('pb_lastName', name);
-    localStorage.setItem('pb_avatar', JSON.stringify({emoji:draftEmoji, color:draftColor}));
+    writeProfile({ name: name, emoji: draftEmoji, color: draftColor });
     enterRoom(pin, name, keyFor(name));
   });
 }
 function handleConfirmJoin(){
-  const nameInput = document.getElementById('name-input');
-  const name = (nameInput ? nameInput.value : '').trim();
+  const name = draftNameValue();
   const pin = draftPin;
-  const err = document.getElementById('join-error');
-  if (!name){ if (err) err.textContent = 'Choisis un prénom.'; return; }
-  if (!/^\d{4}$/.test(pin)){ if (err) err.textContent = 'Code à 4 chiffres.'; return; }
-  if (err) err.textContent = '';
+  if (!name){ showJoinError('Choisis un prénom.'); return; }
+  if (!/^\d{4}$/.test(pin)){ showJoinError('Code à 4 chiffres.'); return; }
+  showJoinError('');
   setBusy(true, 'Connexion…');
+  /* Quand on entre directement depuis le profil, l'écran de saisie n'est pas affiché :
+     en cas de refus, on l'ouvre pour que le joueur puisse corriger son prénom. */
+  const fallbackToForm = function(msg){
+    if (document.getElementById('join-error')){ showJoinError(msg); return; }
+    uiScreen = 'join';
+    renderTop();
+    showJoinError(msg);
+  };
   const ref = db.ref('games/' + pin);
   ref.once('value').then(function(snap){
     if (!snap.exists()){
       setBusy(false,'');
-      if (err) err.textContent = 'Code introuvable.';
+      fallbackToForm('Cette partie n’existe plus.');
       return;
     }
     const key = keyFor(name);
@@ -907,9 +1011,8 @@ function handleConfirmJoin(){
     }, function(txErr, committed){
       setBusy(false,'');
       if (txErr){ showToast('Erreur.'); return; }
-      if (!committed){ if (err) err.textContent = 'Ce prénom est déjà pris dans cette partie.'; return; }
-      localStorage.setItem('pb_lastName', name);
-      localStorage.setItem('pb_avatar', JSON.stringify({emoji:draftEmoji, color:draftColor}));
+      if (!committed){ fallbackToForm('Ce prénom est déjà pris dans cette partie.'); return; }
+      writeProfile({ name: name, emoji: draftEmoji, color: draftColor });
       ref.child('lastActivity').set(Date.now());
       enterRoom(pin, name, key);
     });
@@ -1318,6 +1421,30 @@ function openSheet(){
   document.getElementById('bottom-sheet').classList.add('open');
   document.getElementById('sheet-backdrop').classList.add('open');
 }
+function openProfileSheet(){
+  const p = readProfile();
+  if (p){ draftName = p.name; draftEmoji = p.emoji; draftColor = p.color; }
+  const el = document.getElementById('sheet-content');
+  if (el) el.innerHTML = profileSheetHtml();
+  document.getElementById('bottom-sheet').classList.add('open');
+  document.getElementById('sheet-backdrop').classList.add('open');
+}
+function handleSaveProfile(){
+  const input = document.getElementById('profile-name');
+  const name = (input ? input.value : '').trim();
+  const err = document.getElementById('profile-error');
+  if (!name){ if (err) err.textContent = 'Choisis un prénom.'; return; }
+  draftName = name;
+  writeProfile({ name: name, emoji: draftEmoji, color: draftColor });
+  closeSheet();
+  renderTop();
+  showToast('Profil enregistré.');
+}
+function handleRemoveFriend(key){
+  writeFriends(readFriends().filter(function(f){ return f.key !== key; }));
+  const el = document.getElementById('sheet-content');
+  if (el) el.innerHTML = profileSheetHtml();
+}
 function openJoinSheet(){
   const el = document.getElementById('sheet-content');
   if (el) el.innerHTML = joinSheetHtml();
@@ -1379,6 +1506,12 @@ function renderTop(){
   const roomPhase = inRoom ? getPhase(state) : null;
   document.getElementById('menu-btn').hidden = !inRoom || roomPhase === 'lobby';
   document.getElementById('menu-btn').innerHTML = icon('settings');
+  /* Un seul bouton à droite : profil sur l'accueil, réglages en partie. */
+  const profileBtn = document.getElementById('profile-btn');
+  profileBtn.hidden = uiScreen !== 'home';
+  const me = readProfile();
+  profileBtn.innerHTML = me ? playerAvatarHtml(me, 'small') : icon('user');
+  profileBtn.classList.toggle('has-avatar', !!me);
   /* Pas de bandeau de scores dans le lobby (doublon avec la grille d'avatars) ni pendant
      toute la phase de révélation : les totaux y intègrent déjà la manche en cours et
      bougent à chaque vote, ce qui annonce le résultat avant la validation et le podium. */
@@ -1633,7 +1766,30 @@ document.addEventListener('visibilitychange', function(){
 });
 
 /* ---------- navigation & events ---------- */
-function goCreate(){ draftPin = ''; detachHomeListener(); uiScreen = 'create'; renderTop(); }
+/* Avec un profil enregistré, on saute l'écran de saisie : c'est tout l'intérêt du
+   profil. Sans profil, l'écran sert encore à le constituer. */
+function useProfileDrafts(){
+  const p = readProfile();
+  if (!p) return false;
+  draftName = p.name; draftEmoji = p.emoji; draftColor = p.color;
+  return true;
+}
+function goCreate(){
+  draftPin = '';
+  detachHomeListener();
+  if (useProfileDrafts()){ handleConfirmCreate(); return; }
+  uiScreen = 'create';
+  renderTop();
+}
+function goJoin(pin, hostName){
+  draftPin = pin;
+  joinHostName = hostName || '';
+  closeSheet();
+  detachHomeListener();
+  if (useProfileDrafts()){ handleConfirmJoin(); return; }
+  uiScreen = 'join';
+  renderTop();
+}
 document.addEventListener('submit', function(e){
   if (e.target && e.target.id === 'create-form'){ e.preventDefault(); handleConfirmCreate(); }
   else if (e.target && e.target.id === 'join-form'){ e.preventDefault(); handleConfirmJoin(); }
@@ -1647,11 +1803,13 @@ document.addEventListener('click', function(e){
   else if (action === 'refresh-public-games') handleRefreshPublicGames();
   else if (action === 'open-join') openJoinSheet();
   else if (action === 'quick-join'){
-    draftPin = btn.dataset.pin;
-    const g = lastPublicSnapshot && lastPublicSnapshot[draftPin];
-    joinHostName = (g && g.hostName) || '';
-    closeSheet(); detachHomeListener(); uiScreen = 'join'; renderTop();
+    const pin = btn.dataset.pin;
+    const g = lastPublicSnapshot && lastPublicSnapshot[pin];
+    goJoin(pin, g && g.hostName);
   }
+  else if (action === 'open-profile') openProfileSheet();
+  else if (action === 'save-profile') handleSaveProfile();
+  else if (action === 'remove-friend') handleRemoveFriend(btn.dataset.key);
   else if (action === 'pick-emoji'){ draftEmoji = btn.dataset.emoji; refreshAvatarPicker(); }
   else if (action === 'pick-color'){ draftColor = btn.dataset.color; refreshAvatarPicker(); }
   else if (action === 'start-round') handleStartRound();
