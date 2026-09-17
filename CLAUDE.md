@@ -42,15 +42,23 @@ games/{pin}/                    pin = code à 4 chiffres, sert aussi de clé Fir
   categories: [string, ...]
   roundDurationMs, maxRounds    maxRounds: 0 = illimité, sinon 3/5/10
   createdAt, lastActivity       lastActivity sert au nettoyage auto (INACTIVITY_MS = 3 min)
+  recentLetters: [string, ...]  13 dernières lettres tirées (RECENT_LETTERS_MAX), survit à "Rejouer"
   players/{key}: { name, emoji, color }
   currentRound: {
     number, letter, revealAt, endTime,
     finishedAt, finishedBy,     posé par le 1er joueur qui clique "J'ai fini" -> 5s de grâce pour les autres
     answers/{playerKey}: { "0": "mot", "1": "mot", ... },   // clé = INDEX de la catégorie, pas son nom
-    votes/{catIndex}/{targetPlayerKey}/{voterKey}: true | false
+    votes/{catIndex}/{targetPlayerKey}/{voterKey}: false    // on ne vote QUE pour refuser (voir plus bas)
+    reviewIndex,                catégorie affichée pendant la validation, partagée par tous
+    showLeaderboard,            true = tout le monde bascule sur le classement
+    leaderboardAt               départ commun du roulement de tambour avant le podium
   }
   history/{roundNumber}: <ancien currentRound archivé tel quel>
 ```
+
+**Tirage des lettres** : `recentLetters` est la mémoire glissante des 13 dernières lettres, gardée à la racine de la partie et **pas** déduite de `history` — celui-ci est effacé par "Rejouer" et par la remise à zéro des scores, une lettre pouvait donc revenir juste après. Sur 19 lettres au pool, il en reste toujours 6 tirables. Les parties créées avant ce champ retombent sur l'historique (`recentLetters()`).
+
+**Scoring** (`scoreRound`) : une réponse est **valide par défaut**, l'écran de validation ne permet que de refuser — un seul refus suffit à annuler la réponse. La comparaison `no > yes` est conservée pour rescorer correctement les manches archivées avec l'ancien écran à deux boutons. Une réponse d'une seule lettre vaut 0 sans vote. Les doublons sont détectés à la faute de frappe près (`sameWord`, distance de Levenshtein : 2 fautes à partir de 7 lettres, 1 à partir de 4, aucune en dessous) pour que "Hongrie"/"Hongrir" donnent 1 pt chacun.
 
 **Piège important, ne pas régresser dessus** : les réponses et les votes sont indexés par **position dans le tableau `categories`** (`"0"`, `"1"`, `"2"`…), jamais par le nom de la catégorie. C'est volontaire : Firebase interdit `.` `#` `$` `[` `]` `/` dans les clés d'un objet, et une catégorie comme "Pays / Villes" cassait silencieusement l'écriture (`.set()` échouait, d'où un bug déjà vécu où aucune réponse n'apparaissait). Si tu ajoutes une nouvelle donnée indexée par catégorie, indexe-la par position (`idx` dans les boucles `categories.forEach(function(cat, idx){...})`), jamais par `cat` directement.
 
@@ -58,9 +66,10 @@ games/{pin}/                    pin = code à 4 chiffres, sert aussi de clé Fir
 
 `lobby → countdown (3s, revealAt) → playing → reveal (review + vote) → countdown suivant`
 
-- `reveal` recouvre deux vues côté client : la review catégorie par catégorie, et l'écran de classement/podium. La bascule entre les deux est un booléen **local, non synchronisé entre joueurs** (`viewingLeaderboard`) — chaque joueur navigue à son rythme, seule l'action "Manche suivante" (déclenchée par n'importe qui) fait réellement avancer l'état Firebase partagé.
+- `reveal` recouvre deux vues : la validation catégorie par catégorie, et l'écran de classement/podium. Les deux sont **synchronisées via Firebase** (`currentRound/reviewIndex` et `showLeaderboard`, lus par `reviewIndexOf()` / `showingLeaderboard()`) : tout le monde valide la même catégorie en même temps, et n'importe qui peut faire avancer le groupe. C'était local auparavant — si tu repasses des bouts en local, tu casses la synchro.
 - Le "5s de grâce" après le premier "J'ai fini" est géré par `finishedAt` + `FINISH_GRACE_MS`, voir `roundEndsAt()` — la fin de manche réelle est `min(endTime, finishedAt + 5000)`.
-- `reviewCatIndex` (position dans la review) est aussi local, remis à 0 à chaque nouvelle entrée en phase `reveal`.
+- Le podium est animé par paliers (3e, 2e, 1er + projecteur + confettis, puis les 4e et suivants). Seule la *lecture* de l'animation est locale (`podiumRevealed`, `podiumSettled`, `confettiFired`) ; son point de départ vient de `leaderboardAt`, partagé, pour que tout le monde voie le podium au même moment. `podiumSettled` retire les classes d'animation une fois la séquence jouée : sans lui, le moindre snapshot Firebase rejouerait toute la révélation.
+- **État local propre à une manche** : `localAnswers`, `locked` et `hasAutoSubmitted` sont resynchronisés par `syncRoundLocalState()` à chaque changement de numéro de manche. Ne les remets pas à zéro uniquement à l'entrée dans la partie : c'était le cas avant, d'où des réponses de la manche précédente pré-remplies, grisées pour qui avait fini premier, et surtout plus aucun envoi de réponses dès la 2e manche.
 
 ## Points d'attention connus
 
