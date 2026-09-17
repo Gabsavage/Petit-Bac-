@@ -16,7 +16,10 @@
 <meta name="apple-mobile-web-app-title" content="Petit Bac">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<!-- Chargée sans bloquer le rendu (media="print" le temps du téléchargement) : en
+     feuille de style classique, rien ne s'affiche tant qu'elle n'est pas arrivée,
+     d'où un écran blanc puis toute l'animation du splash jouée d'un coup. -->
+<link id="font-css" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <style>
 :root{
   --paper:#F6F1E4;--paper-raised:#FFFFFF;--surface-2:#EFE6D2;
@@ -26,6 +29,8 @@
   --accent-2:#E2A63A;--accent-2-ink:#2A1B02;
   --success:#2E6E4F;--success-tint:rgba(46,110,79,.12);
   --danger:#B23A2E;--danger-tint:rgba(178,58,46,.14);
+  --gold:#B07D18;--silver:#77797F;--bronze:#A2602A;
+  --gold-tint:rgba(176,125,24,.16);--silver-tint:rgba(119,121,127,.13);--bronze-tint:rgba(162,96,42,.13);
   --shadow-sm:0 1px 0 rgba(32,28,21,.05);
   --shadow-md:0 18px 40px rgba(32,28,21,.14);
   --font-display:'Fraunces',Georgia,serif;
@@ -42,6 +47,8 @@
     --accent-2:#EFBB58;--accent-2-ink:#2A1B02;
     --success:#5FBF92;--success-tint:rgba(95,191,146,.16);
     --danger:#FF7B62;--danger-tint:rgba(255,123,98,.16);
+    --gold:#EFBB58;--silver:#C4C8CF;--bronze:#DB9057;
+    --gold-tint:rgba(239,187,88,.17);--silver-tint:rgba(196,200,207,.13);--bronze-tint:rgba(219,144,87,.15);
     --shadow-sm:0 1px 0 rgba(0,0,0,.4);
     --shadow-md:0 22px 48px rgba(0,0,0,.55);
   }
@@ -54,11 +61,14 @@
   --accent-2:#EFBB58;--accent-2-ink:#2A1B02;
   --success:#5FBF92;--success-tint:rgba(95,191,146,.16);
   --danger:#FF7B62;--danger-tint:rgba(255,123,98,.16);
+  --gold:#EFBB58;--silver:#C4C8CF;--bronze:#DB9057;
+  --gold-tint:rgba(239,187,88,.17);--silver-tint:rgba(196,200,207,.13);--bronze-tint:rgba(219,144,87,.15);
   --shadow-sm:0 1px 0 rgba(0,0,0,.4);
   --shadow-md:0 22px 48px rgba(0,0,0,.55);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;}
+html{background-color:var(--paper);}
 body{margin:0;background-color:var(--paper);background-image:radial-gradient(var(--line) 1px,transparent 1px);
   background-size:20px 20px;color:var(--ink);font-family:var(--font-body);-webkit-font-smoothing:antialiased;overscroll-behavior-y:none;}
 .icon{width:18px;height:18px;flex-shrink:0;display:inline-block;vertical-align:-.15em;}
@@ -252,8 +262,10 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
   background:var(--paper);transition:opacity .45s ease,visibility .45s ease;}
 .splash.hidden{opacity:0;visibility:hidden;pointer-events:none;}
 .splash .tile-row{gap:7px;margin-bottom:8px;}
-.splash-tile{width:46px;height:46px;font-size:1.5rem;opacity:0;
-  animation:tileDrop .52s cubic-bezier(.2,1.3,.45,1) forwards;animation-delay:calc(var(--i) * .07s);}
+/* Les tuiles restent invisibles tant que le JS n'a pas posé .go (une fois la police
+   prête) : sinon les délais s'écoulent pendant le chargement et tout apparaît d'un bloc. */
+.splash-tile{width:46px;height:46px;font-size:1.5rem;opacity:0;}
+.splash.go .splash-tile{animation:tileDrop .52s cubic-bezier(.2,1.3,.45,1) calc(var(--i) * .07s) forwards;}
 .splash-tile .tile-pts{font-size:.55rem;}
 @keyframes tileDrop{
   0%{opacity:0;transform:translateY(-30px) scale(.8) rotate(0deg);}
@@ -261,7 +273,8 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
   100%{opacity:1;transform:translateY(0) scale(1) rotate(var(--rot));}
 }
 .splash-by{margin:26px 0 0;font-family:var(--font-mono);font-size:.66rem;font-weight:500;letter-spacing:.18em;
-  text-transform:uppercase;color:var(--ink-soft);opacity:0;animation:fadeInSoft .5s ease forwards;animation-delay:.72s;}
+  text-transform:uppercase;color:var(--ink-soft);opacity:0;}
+.splash.go .splash-by{animation:fadeInSoft .5s ease .72s forwards;}
 @keyframes fadeInSoft{to{opacity:.7;}}
 .tile-loader-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:26px 0;}
 .tile-loader-wrap.full{height:100%;padding:0;}
@@ -274,8 +287,9 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
 .loader-label{margin:16px 0 0;font-family:var(--font-mono);font-size:.74rem;letter-spacing:.04em;color:var(--ink-soft);}
 @media (prefers-reduced-motion: reduce){
   .loader-tile{animation:none;}
-  .splash-tile{animation:none;opacity:1;transform:rotate(var(--rot));}
-  .splash-by{animation:none;opacity:.7;}
+  .splash.go .splash-tile,.splash.go .splash-by{animation:none;}
+  .splash.go .splash-tile{opacity:1;transform:rotate(var(--rot));}
+  .splash.go .splash-by{opacity:.7;}
 }
 .confetti{position:absolute;top:-18px;border-radius:2px;
   animation-name:confettiFall;animation-timing-function:linear;animation-fill-mode:forwards;}
@@ -309,10 +323,13 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
 .podium-step.p2{order:3;}
 .podium-block{width:100%;border-radius:10px 10px 0 0;border:1.75px solid var(--ink);border-bottom:none;
   display:flex;align-items:flex-start;justify-content:center;padding-top:10px;
-  font-family:var(--font-display);font-weight:700;font-size:1.5rem;color:var(--ink);background:var(--surface-2);}
-.podium-block.rank-1{height:88px;background:var(--accent-2);}
-.podium-block.rank-2{height:64px;}
-.podium-block.rank-3{height:48px;}
+  font-family:var(--font-display);font-weight:700;font-size:1.5rem;color:var(--ink);background:var(--paper-raised);}
+/* Chiffres or / argent / bronze. Les piédestaux ne portent qu'une teinte légère du
+   même métal : en aplat, le 1er écrasait son propre chiffre doré et le faisceau
+   du projecteur, lui aussi dans les tons moutarde. */
+.podium-block.rank-1{height:88px;background:var(--gold-tint);color:var(--gold);}
+.podium-block.rank-2{height:64px;background:var(--silver-tint);color:var(--silver);}
+.podium-block.rank-3{height:48px;background:var(--bronze-tint);color:var(--bronze);}
 .podium-name{font-size:.8rem;font-weight:700;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;}
 .podium-score{font-family:var(--font-mono);font-size:.85rem;color:var(--ink-soft);}
 .leaderboard-list{display:flex;flex-direction:column;gap:6px;margin-top:16px;}
@@ -404,8 +421,9 @@ const DRUMROLL_MS = 1200;
    3e, puis 2e, puis un temps de suspense plus long avant le 1er, puis les autres joueurs. */
 const PODIUM_DELAYS = { third: 0, second: 0.4, first: 1.05, rest: 1.5 };
 const PODIUM_SETTLE_MS = 1950;
-const SPLASH_MIN_MS = 1300;
-const SPLASH_MAX_MS = 3000;
+const SPLASH_MIN_MS = 1300;   /* depuis le départ de l'animation, pour la voir en entier */
+const SPLASH_FONT_WAIT_MS = 600;  /* au-delà, on lance l'animation sans attendre la police */
+const SPLASH_MAX_MS = 3500;
 const INACTIVITY_MS = 3 * 60 * 1000;
 const SCRABBLE_VALUES = {A:1,B:3,C:3,D:2,E:1,F:4,G:2,H:4,I:1,J:8,K:10,L:1,M:2,N:1,O:1,P:3,Q:8,R:1,S:1,T:1,U:1,V:4,W:10,X:10,Y:10,Z:10};
 
@@ -439,9 +457,9 @@ let podiumRevealAt = 0;
 let podiumSettled = false;
 let confettiFired = false;
 let splashStart = Date.now();
+let splashAnimStart = 0;
 let splashDone = false;
 let appReady = false;
-let fontsReady = false;
 let reviewCatIndex = 0;
 let hasRenderedOnce = false;
 
@@ -1431,9 +1449,33 @@ function hideSplash(){
   const el = document.getElementById('splash');
   if (el) el.classList.add('hidden');
 }
+function startSplashAnimation(){
+  if (splashAnimStart) return;
+  splashAnimStart = Date.now();
+  const el = document.getElementById('splash');
+  if (el) el.classList.add('go');
+  setTimeout(maybeHideSplash, SPLASH_MIN_MS + 30);
+}
 function maybeHideSplash(){
   if (splashDone) return;
-  if (appReady && fontsReady && (Date.now() - splashStart) >= SPLASH_MIN_MS) hideSplash();
+  if (appReady && splashAnimStart && (Date.now() - splashAnimStart) >= SPLASH_MIN_MS) hideSplash();
+}
+/* Attend que la police d'affichage soit vraiment posée avant de lancer l'animation,
+   sinon les tuiles démarrent en police de repli et basculent en plein vol. */
+function whenDisplayFontReady(cb){
+  const link = document.getElementById('font-css');
+  const loadFace = function(){
+    if (document.fonts && document.fonts.load){
+      document.fonts.load('700 1.5rem Fraunces').then(cb, cb);
+    } else {
+      cb();
+    }
+  };
+  if (!link || link.sheet) loadFace();
+  else {
+    link.addEventListener('load', loadFace);
+    link.addEventListener('error', cb);
+  }
 }
 function markAppReady(){
   if (appReady) return;
@@ -1445,12 +1487,8 @@ function markAppReady(){
 (function boot(){
   document.getElementById('brand-icon').innerHTML = icon('pencil');
   splashStart = Date.now();
-  if (document.fonts && document.fonts.ready){
-    document.fonts.ready.then(function(){ fontsReady = true; maybeHideSplash(); });
-  } else {
-    fontsReady = true;
-  }
-  setTimeout(maybeHideSplash, SPLASH_MIN_MS + 30);
+  whenDisplayFontReady(startSplashAnimation);
+  setTimeout(startSplashAnimation, SPLASH_FONT_WAIT_MS);
   setTimeout(hideSplash, SPLASH_MAX_MS);
   const params = new URLSearchParams(location.search);
   const pinParam = params.get('pin');
