@@ -261,7 +261,13 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
 .play-status{width:88px;height:88px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:5px;color:var(--ink-soft);font-size:.78rem;line-height:1.3;text-align:center;}
 .play-status .icon{width:26px;height:26px;color:var(--success);}
-.answer-scroll{flex:1 1 auto;overflow-y:auto;min-height:0;}
+/* La carte est centrée dans l'espace restant, mais avec une bande réservée en bas :
+   un centrage plein ne laisse que 40px sous elle sur un écran de 844, et les
+   griffonnages n'ont plus où aller. `safe center` et pas `center` : quand les
+   catégories débordent, un centrage normal rognerait le haut de la liste et le
+   rendrait inatteignable au défilement. */
+.answer-scroll{flex:1 1 auto;overflow-y:auto;min-height:0;padding-bottom:44px;
+  display:flex;flex-direction:column;justify-content:safe center;}
 .timer-ring{position:relative;width:88px;height:88px;flex-shrink:0;}
 .timer-ring svg{width:100%;height:100%;transform:rotate(-90deg);}
 .ring-bg{fill:none;stroke:var(--line);stroke-width:8;}
@@ -1791,12 +1797,12 @@ const PAPER_DOODLES = {
      et la bande pleine largeur sous la carte, libre de 660 à 760 sur un écran de
      844 et jusqu'à 880 sur un plus grand — ancrée en bas, elle marche sur les deux. */
   manche: [
-    { n:'chrono',      t:124, x:'1%',   w:52, h:62,  r:-8 },
-    { n:'sablier',     t:132, rx:'2%',  w:44, h:57,  r:6 },
-    { n:'stylo',       b:96,  x:'6%',   w:52, h:68,  r:-14 },
-    { n:'etoile-a',    b:122, x:'36%',  w:26, h:31,  r:12 },
-    { n:'trajectoire', b:92,  rx:'32%', w:50, h:37,  r:-4 },
-    { n:'gribouillis', b:104, rx:'7%',  w:44, h:39,  r:0 }
+    { n:'chrono',      t:140, x:'9%',   w:52, h:62,  r:-8 },
+    { n:'sablier',     t:148, rx:'10%', w:44, h:57,  r:6 },
+    { n:'stylo',       b:88,  x:'5%',   w:48, h:63,  r:-14 },
+    { n:'etoile-a',    b:118, x:'31%',  w:26, h:31,  r:12 },
+    { n:'trajectoire', b:130, rx:'33%', w:48, h:35,  r:-4 },
+    { n:'gribouillis', b:92,  rx:'8%',  w:42, h:37,  r:0 }
   ],
   podium: [
     { n:'fanions',     t:64,  rx:'-8px', w:150, h:67, r:0 },

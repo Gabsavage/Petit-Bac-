@@ -127,6 +127,8 @@ Les bandes réellement libres, mesurées à 390×844 :
 | manche | 660–760 |
 | podium | 60–180, 300–760 |
 
+Sur l'écran de manche, la carte de réponses est centrée verticalement mais avec une **bande de 44px réservée en bas** (`padding-bottom` sur `.answer-scroll`) : un centrage plein ne laisse que 40px sous elle sur un écran de 844 et les griffonnages n'ont plus où aller. Et `justify-content:safe center`, pas `center` — quand les catégories débordent, un centrage normal rogne le haut de la liste et le rend inatteignable au défilement.
+
 Le **salon n'a aucune bande libre** : sa liste `PAPER_DOODLES.salon` est vide exprès, il ne garde que le papier réglé. Pour remesurer après un changement de mise en page, **mesurer en 2D et pas par bandes horizontales** : découper l'écran en cellules de 20px et marquer celles que recouvre un rectangle d'élément d'UI, puis imprimer la grille en ASCII. Une mesure par bandes déclare « occupée » une ligne traversée par un seul élément central et fait rater les bords libres — c'est comme ça que les flancs de la lettre, sur l'écran de manche, étaient passés inaperçus.
 
 Un piège dans cette mesure : exclure les **conteneurs** du sélecteur. `.answer-scroll` occupe toute la hauteur restante même quand la carte de réponses est plus courte, et fait passer l'écran entier pour plein. Ne viser que ce qui est réellement peint.
