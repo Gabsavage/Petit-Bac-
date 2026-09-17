@@ -127,7 +127,9 @@ Les bandes réellement libres, mesurées à 390×844 :
 | manche | 660–760 |
 | podium | 60–180, 300–760 |
 
-Le **salon n'a aucune bande libre** : sa liste `PAPER_DOODLES.salon` est vide exprès, il ne garde que le papier réglé. Pour remesurer après un changement de mise en page : parcourir l'écran par bandes de 20px et sommer l'union des rectangles des éléments d'UI, une bande sous 12 % d'occupation est libre.
+Le **salon n'a aucune bande libre** : sa liste `PAPER_DOODLES.salon` est vide exprès, il ne garde que le papier réglé. Pour remesurer après un changement de mise en page, **mesurer en 2D et pas par bandes horizontales** : découper l'écran en cellules de 20px et marquer celles que recouvre un rectangle d'élément d'UI, puis imprimer la grille en ASCII. Une mesure par bandes déclare « occupée » une ligne traversée par un seul élément central et fait rater les bords libres — c'est comme ça que les flancs de la lettre, sur l'écran de manche, étaient passés inaperçus.
+
+Un piège dans cette mesure : exclure les **conteneurs** du sélecteur. `.answer-scroll` occupe toute la hauteur restante même quand la carte de réponses est plus courte, et fait passer l'écran entier pour plein. Ne viser que ce qui est réellement peint.
 
 Deux pièges rencontrés au détourage, si tu dois refaire l'extraction : la luminance doit être calculée **en flottant** (`0.299*r + ...` déborde en `int16` et rend des valeurs négatives), et le seuil doit être mesuré sur une bande de page **sans dessin** — `lum < 170` et `bleu - rouge > 25` attrape l'encre et 0 % des lignes du cahier. Trop haut, les lignes passent pour de l'encre, se connectent d'un bord à l'autre et fusionnent tous les dessins en un seul bloc pleine largeur.
 

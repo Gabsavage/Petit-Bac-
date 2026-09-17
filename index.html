@@ -1786,11 +1786,17 @@ const PAPER_DOODLES = {
     { n:'avion',       b:28,  x:'7%',   w:64, h:57,  r:-4 }
   ],
   salon: [],
+  /* Deux zones seulement, mais bien remplies : les flancs de la lettre (y 120-220,
+     la carte de réponses commence à 220, d'où des dessins qui tiennent au-dessus)
+     et la bande pleine largeur sous la carte, libre de 660 à 760 sur un écran de
+     844 et jusqu'à 880 sur un plus grand — ancrée en bas, elle marche sur les deux. */
   manche: [
-    { n:'chrono',      t:176, x:'1%',   w:58, h:70,  r:-8 },
-    { n:'sablier',     t:186, rx:'2%',  w:48, h:62,  r:6 },
-    { n:'stylo',       b:104, x:'4%',   w:44, h:58,  r:-12 },
-    { n:'gribouillis', b:112, rx:'6%',  w:40, h:35,  r:0 }
+    { n:'chrono',      t:124, x:'1%',   w:52, h:62,  r:-8 },
+    { n:'sablier',     t:132, rx:'2%',  w:44, h:57,  r:6 },
+    { n:'stylo',       b:96,  x:'6%',   w:52, h:68,  r:-14 },
+    { n:'etoile-a',    b:122, x:'36%',  w:26, h:31,  r:12 },
+    { n:'trajectoire', b:92,  rx:'32%', w:50, h:37,  r:-4 },
+    { n:'gribouillis', b:104, rx:'7%',  w:44, h:39,  r:0 }
   ],
   podium: [
     { n:'fanions',     t:64,  rx:'-8px', w:150, h:67, r:0 },
