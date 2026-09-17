@@ -248,6 +248,35 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
 @keyframes drumBounce{from{transform:translateY(0) rotate(-2deg);}to{transform:translateY(-13px) rotate(2deg);}}
 .drum-caption{font-family:var(--font-mono);font-size:.8rem;letter-spacing:.04em;color:var(--ink-soft);margin:0;}
 .fx-layer{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:45;}
+.splash{position:absolute;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:var(--paper);transition:opacity .45s ease,visibility .45s ease;}
+.splash.hidden{opacity:0;visibility:hidden;pointer-events:none;}
+.splash .tile-row{gap:7px;margin-bottom:8px;}
+.splash-tile{width:46px;height:46px;font-size:1.5rem;opacity:0;
+  animation:tileDrop .52s cubic-bezier(.2,1.3,.45,1) forwards;animation-delay:calc(var(--i) * .07s);}
+.splash-tile .tile-pts{font-size:.55rem;}
+@keyframes tileDrop{
+  0%{opacity:0;transform:translateY(-30px) scale(.8) rotate(0deg);}
+  55%{opacity:1;}
+  100%{opacity:1;transform:translateY(0) scale(1) rotate(var(--rot));}
+}
+.splash-by{margin:26px 0 0;font-family:var(--font-mono);font-size:.66rem;font-weight:500;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--ink-soft);opacity:0;animation:fadeInSoft .5s ease forwards;animation-delay:.72s;}
+@keyframes fadeInSoft{to{opacity:.7;}}
+.tile-loader-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:26px 0;}
+.tile-loader-wrap.full{height:100%;padding:0;}
+.tile-loader{display:flex;gap:7px;}
+.loader-tile{width:14px;height:14px;border-radius:4px;background:var(--paper-raised);border:1.5px solid var(--ink);
+  box-shadow:1.5px 1.5px 0 var(--ink);animation:loaderHop .5s ease-in-out infinite alternate;}
+.loader-tile:nth-child(2){animation-delay:.14s;}
+.loader-tile:nth-child(3){animation-delay:.28s;}
+@keyframes loaderHop{from{transform:translateY(0);}to{transform:translateY(-8px);}}
+.loader-label{margin:16px 0 0;font-family:var(--font-mono);font-size:.74rem;letter-spacing:.04em;color:var(--ink-soft);}
+@media (prefers-reduced-motion: reduce){
+  .loader-tile{animation:none;}
+  .splash-tile{animation:none;opacity:1;transform:rotate(var(--rot));}
+  .splash-by{animation:none;opacity:.7;}
+}
 .confetti{position:absolute;top:-18px;border-radius:2px;
   animation-name:confettiFall;animation-timing-function:linear;animation-fill-mode:forwards;}
 @keyframes confettiFall{
@@ -308,7 +337,7 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
     <button type="button" id="menu-btn" class="icon-btn" data-action="open-menu" aria-label="Réglages" hidden></button>
   </div>
   <div id="scoreboard-strip" class="scoreboard-strip"></div>
-  <main id="content" class="content"><p class="muted">Connexion…</p></main>
+  <main id="content" class="content"><div class="tile-loader-wrap full"><div class="tile-loader"><span class="loader-tile"></span><span class="loader-tile"></span><span class="loader-tile"></span></div><p class="loader-label">Connexion…</p></div></main>
   <footer id="bottom-bar" class="bottom-bar"></footer>
   <div id="fx-layer" class="fx-layer" aria-hidden="true"></div>
   <p id="status-line" class="status-toast"></p>
@@ -316,6 +345,23 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
   <div id="bottom-sheet" class="bottom-sheet">
     <div class="sheet-handle"></div>
     <div id="sheet-content"></div>
+  </div>
+  <div id="splash" class="splash">
+    <div class="splash-logo">
+      <div class="tile-row">
+        <span class="tile splash-tile" style="--i:0;--rot:-3deg">P<b class="tile-pts">3</b></span>
+        <span class="tile splash-tile" style="--i:1;--rot:2deg">E<b class="tile-pts">1</b></span>
+        <span class="tile splash-tile" style="--i:2;--rot:-1deg">T<b class="tile-pts">1</b></span>
+        <span class="tile splash-tile" style="--i:3;--rot:2deg">I<b class="tile-pts">1</b></span>
+        <span class="tile splash-tile" style="--i:4;--rot:-2deg">T<b class="tile-pts">1</b></span>
+      </div>
+      <div class="tile-row">
+        <span class="tile splash-tile" style="--i:5;--rot:3deg">B<b class="tile-pts">3</b></span>
+        <span class="tile splash-tile" style="--i:6;--rot:-2deg">A<b class="tile-pts">1</b></span>
+        <span class="tile splash-tile" style="--i:7;--rot:2deg">C<b class="tile-pts">3</b></span>
+      </div>
+    </div>
+    <p class="splash-by">by Gabriel</p>
   </div>
 </div>
 
@@ -343,6 +389,8 @@ const RING_CIRC = 2 * Math.PI * 52;
 const COUNTDOWN_MS = 3000;
 const FINISH_GRACE_MS = 5000;
 const DRUMROLL_MS = 1800;
+const SPLASH_MIN_MS = 1300;
+const SPLASH_MAX_MS = 3000;
 const INACTIVITY_MS = 3 * 60 * 1000;
 const SCRABBLE_VALUES = {A:1,B:3,C:3,D:2,E:1,F:4,G:2,H:4,I:1,J:8,K:10,L:1,M:2,N:1,O:1,P:3,Q:8,R:1,S:1,T:1,U:1,V:4,W:10,X:10,Y:10,Z:10};
 
@@ -373,6 +421,10 @@ let lastCountdownLabel = null;
 let viewingLeaderboard = false;
 let podiumRevealed = false;
 let podiumRevealAt = 0;
+let splashStart = Date.now();
+let splashDone = false;
+let appReady = false;
+let fontsReady = false;
 let reviewCatIndex = 0;
 let hasRenderedOnce = false;
 
@@ -533,7 +585,7 @@ function renderHomeContent(){
   '</div>';
   html += '<div class="section-heading-row"><p class="section-heading">Parties en cours</p>' +
     '<button type="button" id="refresh-public-btn" class="icon-btn small" data-action="refresh-public-games" aria-label="Actualiser">'+icon('refresh')+'</button></div>';
-  html += '<div id="public-games-list" class="public-games-list"><p class="muted" style="text-align:center;">Chargement…</p></div>';
+  html += '<div id="public-games-list" class="public-games-list">' + renderTileLoader('') + '</div>';
   return html;
 }
 function renderPublicGameRow(pin, g){
@@ -872,6 +924,13 @@ function renderRevealBottom(s){
   }
   return '<button type="button" class="cta" data-action="view-leaderboard">'+icon('trophy')+' Voir le classement</button>';
 }
+function renderTileLoader(label){
+  let html = '<div class="tile-loader-wrap"><div class="tile-loader">';
+  for (let i = 0; i < 3; i++){ html += '<span class="loader-tile"></span>'; }
+  html += '</div>';
+  if (label) html += '<p class="loader-label">'+esc(label)+'</p>';
+  return html + '</div>';
+}
 function renderDrumrollContent(s){
   const round = s.currentRound;
   const isFinal = s.maxRounds > 0 && round.number >= s.maxRounds;
@@ -1105,6 +1164,7 @@ function renderTop(){
     if (phase === 'lobby') renderQr();
   }
   document.title = (uiScreen === 'room' && currentPin) ? ('Petit Bac · #'+currentPin) : 'Petit Bac';
+  markAppReady();
 }
 function setBusy(isBusy, label){
   const el = document.getElementById('status-line');
@@ -1263,7 +1323,10 @@ function tick(){
   }
 }
 document.addEventListener('visibilitychange', function(){
-  if (!document.hidden) tick();
+  if (document.hidden) return;
+  tick();
+  if (!splashDone && (Date.now() - splashStart) >= SPLASH_MAX_MS) hideSplash();
+  else maybeHideSplash();
 });
 
 /* ---------- navigation & events ---------- */
@@ -1311,9 +1374,34 @@ db.ref('.info/connected').on('value', function(snap){
 });
 setInterval(tick, 250);
 
+/* ---------- splash ---------- */
+function hideSplash(){
+  if (splashDone) return;
+  splashDone = true;
+  const el = document.getElementById('splash');
+  if (el) el.classList.add('hidden');
+}
+function maybeHideSplash(){
+  if (splashDone) return;
+  if (appReady && fontsReady && (Date.now() - splashStart) >= SPLASH_MIN_MS) hideSplash();
+}
+function markAppReady(){
+  if (appReady) return;
+  appReady = true;
+  maybeHideSplash();
+}
+
 /* ---------- boot ---------- */
 (function boot(){
   document.getElementById('brand-icon').innerHTML = icon('pencil');
+  splashStart = Date.now();
+  if (document.fonts && document.fonts.ready){
+    document.fonts.ready.then(function(){ fontsReady = true; maybeHideSplash(); });
+  } else {
+    fontsReady = true;
+  }
+  setTimeout(maybeHideSplash, SPLASH_MIN_MS + 30);
+  setTimeout(hideSplash, SPLASH_MAX_MS);
   const params = new URLSearchParams(location.search);
   const pinParam = params.get('pin');
   if (pinParam && /^\d{4}$/.test(pinParam)){
