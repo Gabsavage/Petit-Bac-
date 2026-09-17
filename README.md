@@ -47,7 +47,7 @@ La base Firebase utilisée est celle de prod (projet `petit-bac-c24bf`) — test
 3. **Création** — la partie obtient un code à 4 chiffres, qui sert de clé Firebase mais n'est jamais affiché : on rejoint par QR code, par lien (`?pin=XXXX`) ou depuis la liste.
 4. **Salle d'attente** — QR code à scanner, joueurs présents, et les huit catégories de la partie, chacune avec son picto. Elles sont **tirées au sort** à la création, dans une banque groupée par famille (classiques, lieux, culture, nourriture, quotidien, nature, fun) pour que deux parties ne se ressemblent pas. Seul l'hôte lance la manche. Les réglages (catégories — à réécrire à la main ou à retirer au sort —, durée 60/90/120s, nombre de manches 3/5/10/∞) sont accessibles juste au-dessus du bouton de lancement.
 5. **Manche** — décompte de 3s, puis la lettre s'affiche à gauche du minuteur. Le premier qui clique "J'ai fini" déclenche 5s de grâce pour les autres, après quoi la manche se termine pour tout le monde.
-6. **Validation** — catégorie par catégorie, synchronisée : tout le monde voit la même au même moment, et n'importe qui fait avancer le groupe. Les réponses comptent par défaut, un bouton permet de refuser celles qui ne vont pas.
+6. **Validation** — catégorie par catégorie, synchronisée : tout le monde voit la même au même moment. Chacun peut refuser les réponses qui ne vont pas (elles comptent par défaut), mais c'est l'hôte qui fait avancer le groupe d'une catégorie à l'autre.
 7. **Podium** — roulement de tambour, puis révélation par paliers : 3e, 2e, puis la 1re place sous un projecteur avec des confettis, et enfin le reste du classement.
 
 ## Règles de score

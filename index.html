@@ -1286,13 +1286,22 @@ function renderRevealContent(s){
       '</div></div>';
   }).join('');
   html += '</div>';
-  if (idx > 0) html += '<div style="text-align:center;"><button type="button" class="btn-link" data-action="review-prev">'+icon('chevronLeft')+'Catégorie précédente</button></div>';
+  if (idx > 0 && myKey === s.hostKey) html += '<div style="text-align:center;"><button type="button" class="btn-link" data-action="review-prev">'+icon('chevronLeft')+'Catégorie précédente</button></div>';
   html += '<p class="legend">Tout compte par défaut : 2 pts si personne n’a le même mot, 1 pt sinon. Refuse une réponse si elle ne va pas.</p>';
   return html;
 }
 function renderRevealBottom(s){
   const idx = Math.min(reviewIndexOf(s), s.categories.length - 1);
-  if (idx < s.categories.length - 1){
+  const last = idx >= s.categories.length - 1;
+  /* Tout le monde vote, mais seul l'hôte fait avancer le groupe : à plusieurs,
+     n'importe qui pouvait enchaîner sur la catégorie suivante pendant que les
+     autres étaient encore en train de lire. */
+  if (myKey !== s.hostKey){
+    return '<p class="muted" style="text-align:center;margin:0;">' +
+      (last ? 'En attente que l’hôte affiche le classement…' : 'En attente que l’hôte passe à la catégorie suivante…') +
+      '</p>';
+  }
+  if (!last){
     return '<button type="button" class="cta" data-action="review-next">Suivant '+icon('chevronRight')+'</button>';
   }
   return '<button type="button" class="cta" data-action="view-leaderboard">'+icon('trophy')+' Voir le classement</button>';
@@ -1705,12 +1714,12 @@ function handleFinishRound(){
   renderTop();
 }
 function handleReviewStep(delta){
-  if (!roomRef || !state.currentRound) return;
+  if (!roomRef || !state.currentRound || myKey !== state.hostKey) return;
   const next = Math.max(0, Math.min(reviewIndexOf(state) + delta, state.categories.length - 1));
   roomRef.update({ 'currentRound/reviewIndex': next, lastActivity: Date.now() });
 }
 function handleShowLeaderboard(){
-  if (!roomRef || !state.currentRound) return;
+  if (!roomRef || !state.currentRound || myKey !== state.hostKey) return;
   roomRef.update({
     'currentRound/showLeaderboard': true,
     'currentRound/leaderboardAt': Date.now(),
