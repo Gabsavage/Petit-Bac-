@@ -76,47 +76,29 @@ body{margin:0;background-color:var(--paper);background-image:radial-gradient(var
   background:var(--paper);overflow:hidden;}
 #app-shell::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;z-index:2;
   background:linear-gradient(90deg,var(--accent),var(--accent-2));}
-/* Fond « page de cahier », une image par écran (`data-bg`, posé par renderTop()).
-   L'image est portée par une couche `::after` et non par `background-image` du shell,
-   pour deux raisons : on peut l'atténuer (`opacity`) sans toucher au papier en dessous,
-   et on peut la faire disparaître en haut et en bas avec un masque. C'est nécessaire :
-   les griffonnages sont dans les coins, or le bandeau et le bloc de stats aussi — sans
-   masque, la fusée passe en travers du titre et l'éclair en travers des scores.
-   `z-index:0` la place sous tout le reste (bandeau, contenu, barre du bas sont déjà en 1). */
-#app-shell::after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
-  background-repeat:no-repeat;background-position:top center;background-size:cover;
-  opacity:.62;
-  /* Le masque ne protège QUE le bandeau : il fondait autrefois 128px en haut et 132px
-     en bas, or c'est précisément là que sont les griffonnages — on les payait sans
-     rien gagner. Le texte posé à même le fond est protégé par un halo (voir plus bas),
-     ce qui laisse les dessins visibles au lieu de les effacer. */
-  -webkit-mask-image:linear-gradient(to bottom, rgba(0,0,0,.12) 0, rgba(0,0,0,.12) 34px, #000 78px, #000 100%);
-  mask-image:linear-gradient(to bottom, rgba(0,0,0,.12) 0, rgba(0,0,0,.12) 34px, #000 78px, #000 100%);}
-/* Le salon est le seul écran sans aucune bande libre : quoi qu'on dessine, ça tombe
-   sous un avatar ou sous la liste de catégories. On le garde en simple texture. */
-#app-shell[data-bg="salon"]::after{opacity:.3;}
-/* Halo de papier sous le texte posé à même le fond (le reste est sur des cartes,
-   qui ont déjà un aplat). Sans ça un trait de bic passe au travers d'un mot. */
-.app-bar-title,.tagline,.section-heading,.lobby-name,.stat-value,.stat-label,
-.review-progress,.legend,.loader-label,.drum-caption{
-  text-shadow:0 0 7px var(--paper),0 0 13px var(--paper);}
-#app-shell[data-bg="accueil"]::after{background-image:url(/bg/accueil.webp);}
-#app-shell[data-bg="salon"]::after{background-image:url(/bg/salon.webp);}
-#app-shell[data-bg="manche"]::after{background-image:url(/bg/manche.webp);}
-#app-shell[data-bg="podium"]::after{background-image:url(/bg/podium.webp);}
-/* En sombre le trait ressort davantage sur la page noire : on atténue un peu plus. */
+/* Fond « page de cahier ». Les lignes sont **dessinées** (dégradés répétés) et
+   non photographiées : elles restent droites, se recolorent avec le thème, et
+   surtout elles s'adaptent à n'importe quelle hauteur d'écran. Les griffonnages,
+   eux, sont des masques détourés des images générées (`bg/d/`), posés un par un
+   dans les bandes que l'UI laisse libres. C'est tout l'intérêt par rapport à une
+   image de fond : une compo figée calée sur un écran de 844pt tombe à côté sur un
+   téléphone plus haut, là où un dessin ancré « à 70px du bandeau » reste en place. */
+.paper-doodles{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+  background-image:
+    linear-gradient(90deg, transparent 27px, var(--rule-red) 27px, var(--rule-red) 28.5px, transparent 28.5px),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 27px, var(--rule-blue) 27px, var(--rule-blue) 28px);
+  background-position:0 0, 0 60px;}
+.doodle{position:absolute;display:block;background-color:var(--doodle-ink);
+  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
+  -webkit-mask-size:contain;mask-size:contain;
+  -webkit-mask-position:center;mask-position:center;}
+:root{--rule-blue:rgba(106,142,181,.34);--rule-red:rgba(193,64,28,.26);--doodle-ink:rgba(36,64,143,.40);}
 @media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]) #app-shell::after{opacity:.5;}
-  :root:not([data-theme="light"]) #app-shell[data-bg="accueil"]::after{background-image:url(/bg/accueil-dark.webp);}
-  :root:not([data-theme="light"]) #app-shell[data-bg="salon"]::after{background-image:url(/bg/salon-dark.webp);}
-  :root:not([data-theme="light"]) #app-shell[data-bg="manche"]::after{background-image:url(/bg/manche-dark.webp);}
-  :root:not([data-theme="light"]) #app-shell[data-bg="podium"]::after{background-image:url(/bg/podium-dark.webp);}
+  :root:not([data-theme="light"]){--rule-blue:rgba(140,172,205,.13);--rule-red:rgba(228,105,61,.20);
+    --doodle-ink:rgba(126,156,224,.34);}
 }
-:root[data-theme="dark"] #app-shell::after{opacity:.5;}
-:root[data-theme="dark"] #app-shell[data-bg="accueil"]::after{background-image:url(/bg/accueil-dark.webp);}
-:root[data-theme="dark"] #app-shell[data-bg="salon"]::after{background-image:url(/bg/salon-dark.webp);}
-:root[data-theme="dark"] #app-shell[data-bg="manche"]::after{background-image:url(/bg/manche-dark.webp);}
-:root[data-theme="dark"] #app-shell[data-bg="podium"]::after{background-image:url(/bg/podium-dark.webp);}
+:root[data-theme="dark"]{--rule-blue:rgba(140,172,205,.13);--rule-red:rgba(228,105,61,.20);
+  --doodle-ink:rgba(126,156,224,.34);}
 @media (min-width:560px){
   #app-shell{margin:22px auto;height:calc(100dvh - 44px);border-radius:20px;box-shadow:var(--shadow-md);border:1.5px solid var(--line);}
   #app-shell::before{border-radius:20px 20px 0 0;}
@@ -460,6 +442,7 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
   <div id="scoreboard-strip" class="scoreboard-strip"></div>
   <main id="content" class="content"><div class="tile-loader-wrap full"><div class="tile-loader"><span class="loader-tile"></span><span class="loader-tile"></span><span class="loader-tile"></span></div><p class="loader-label">Connexion…</p></div></main>
   <footer id="bottom-bar" class="bottom-bar"></footer>
+  <div id="paper-doodles" class="paper-doodles" aria-hidden="true"></div>
   <div id="fx-layer" class="fx-layer" aria-hidden="true"></div>
   <p id="status-line" class="status-toast"></p>
   <div id="sheet-backdrop" class="sheet-backdrop" data-action="close-menu"></div>
@@ -1781,6 +1764,61 @@ function updateCountdownUI(){
 }
 
 /* ---------- top-level render dispatcher ---------- */
+/* Placement des griffonnages, écran par écran, dans les bandes que l'UI laisse
+   libres (mesurées : voir CLAUDE.md). Chaque dessin est ancré soit en haut (`t`),
+   soit en bas (`b`), soit au centre (`c`, décalage en px depuis le milieu) :
+   le bandeau et la barre du bas ont une hauteur fixe, donc un dessin calé dessus
+   reste à sa place sur un téléphone plus haut, là où un pourcentage dériverait.
+   `x` positionne depuis la gauche, `rx` depuis la droite. Le salon n'a aucune
+   bande libre : il ne garde que le papier réglé. */
+const PAPER_DOODLES = {
+  accueil: [
+    { n:'fusee',       t:70,  x:'1%',   w:76, h:112, r:-6 },
+    { n:'soleil',      t:74,  rx:'3%',  w:56, h:78,  r:0 },
+    { n:'boucle',      t:126, rx:'24%', w:42, h:68,  r:-10 },
+    { n:'etoile-a',    t:152, x:'32%',  w:30, h:36,  r:8 },
+    { n:'spirale',     c:-46, x:'4%',   w:40, h:50,  r:0 },
+    { n:'trajectoire', c:8,   rx:'5%',  w:62, h:46,  r:-6 },
+    { n:'etoile-b',    c:26,  x:'35%',  w:26, h:31,  r:-12 },
+    { n:'coeur',       b:98,  x:'1%',   w:26, h:29,  r:-8 },
+    { n:'eclair',      b:74,  rx:'7%',  w:40, h:80,  r:6 },
+    { n:'etoile-c',    b:36,  rx:'30%', w:24, h:30,  r:10 },
+    { n:'avion',       b:28,  x:'7%',   w:64, h:57,  r:-4 }
+  ],
+  salon: [],
+  manche: [
+    { n:'chrono',      t:176, x:'1%',   w:58, h:70,  r:-8 },
+    { n:'sablier',     t:186, rx:'2%',  w:48, h:62,  r:6 },
+    { n:'stylo',       b:104, x:'4%',   w:44, h:58,  r:-12 },
+    { n:'gribouillis', b:112, rx:'6%',  w:40, h:35,  r:0 }
+  ],
+  podium: [
+    { n:'fanions',     t:64,  rx:'-8px', w:150, h:67, r:0 },
+    { n:'coupe',       t:86,  x:'4%',   w:68, h:84,  r:-6 },
+    { n:'etoile-a',    t:152, x:'36%',  w:28, h:34,  r:10 },
+    { n:'medaille',    t:170, rx:'5%',  w:54, h:81,  r:8 },
+    { n:'etoile-b',    b:152, x:'32%',  w:26, h:31,  r:6 },
+    { n:'feu',         b:126, x:'4%',   w:64, h:76,  r:0 },
+    { n:'spirale',     b:252, x:'8%',   w:34, h:42,  r:0 },
+    { n:'boucle',      b:236, rx:'14%', w:32, h:52,  r:12 },
+    { n:'etoile-c',    b:186, rx:'10%', w:24, h:30,  r:-8 }
+  ]
+};
+function renderDoodles(bg){
+  const list = PAPER_DOODLES[bg] || [];
+  return list.map(function(d){
+    let css = '';
+    if (d.b !== undefined) css += 'bottom:' + d.b + 'px;';
+    else if (d.c !== undefined) css += 'top:calc(50% + ' + d.c + 'px);';
+    else css += 'top:' + d.t + 'px;';
+    css += (d.x !== undefined ? 'left:' + d.x + ';' : 'right:' + d.rx + ';');
+    css += 'width:' + d.w + 'px;height:' + d.h + 'px;';
+    if (d.r) css += 'transform:rotate(' + d.r + 'deg);';
+    const url = 'url(/bg/d/' + d.n + '.png)';
+    css += '-webkit-mask-image:' + url + ';mask-image:' + url + ';';
+    return '<span class="doodle" style="' + css + '"></span>';
+  }).join('');
+}
 /* Le fond suit l'écran, et en partie la phase : le salon, la manche et le podium
    n'ont pas la même page de cahier. Les écrans de saisie (create/join) restent sur
    celle de l'accueil, ils en sont le prolongement. */
@@ -1809,7 +1847,14 @@ function renderTop(){
      bougent à chaque vote, ce qui annonce le résultat avant la validation et le podium. */
   const stripHidden = !inRoom || roomPhase === 'lobby' || roomPhase === 'reveal';
   document.getElementById('scoreboard-strip').innerHTML = stripHidden ? '' : renderScoreboard(state);
-  document.getElementById('app-shell').dataset.bg = bgForScreen(uiScreen, roomPhase);
+  const bg = bgForScreen(uiScreen, roomPhase);
+  const shell = document.getElementById('app-shell');
+  /* On ne reconstruit le calque que si l'écran a changé : renderTop() tourne à
+     chaque snapshot Firebase, inutile de réécrire 11 spans toutes les 10 secondes. */
+  if (shell.dataset.bg !== bg){
+    shell.dataset.bg = bg;
+    document.getElementById('paper-doodles').innerHTML = renderDoodles(bg);
+  }
 
   const activeEl = document.activeElement;
   const preserveId = (activeEl && activeEl.id) || null;

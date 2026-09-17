@@ -109,17 +109,16 @@ Les **règles du match** (nombre de manches, durée) sont affichées en deux pas
 
 ## Fonds « page de cahier »
 
-Les fichiers sont dans `bg/` : une page de cahier réglée avec des griffonnages au bic, une image par écran et par thème (accueil, salon, manche, podium × clair/sombre, soit huit fichiers pour 273 Ko au total). Elles sont générées (ChatGPT) à partir d'un bloc de style commun — page vue à plat, lignes droites, marge rouge, trait de bic bleu, aucun texte, coins occupés et centre vide — et des couleurs imposées en hexa (`#F6F1E4` / `#B9C7D6` / `#D9857C` / `#24408F` en clair, `#17130E` / `#2E2820` / `#5A2A20` / `#6E86C4` en sombre). Si tu en régénères une, reprends ces valeurs, sinon elle jurera avec les autres.
+Le fond est en deux morceaux, et c'est délibéré :
 
-Converties en **WebP q82** : 25 à 45 Ko pièce contre ~1 Mo en PNG, pour un fond dont la fidélité au pixel n'a aucune importance. Ne les recommite pas en PNG.
+- **Le papier réglé est dessiné en CSS** (`.paper-doodles`, deux dégradés : la marge rouge et un `repeating-linear-gradient` pour les lignes). Il ne coûte rien, reste droit, se recolore avec le thème et s'adapte à n'importe quelle hauteur d'écran.
+- **Les griffonnages sont 26 masques** dans `bg/d/` (82 Ko au total), détourés des images générées par ChatGPT. Ce sont des PNG en niveaux de gris + alpha, posés en `mask-image` sur un `<span>` dont la `background-color` est `--doodle-ink` : **un seul fichier sert aux deux thèmes**, seule la couleur change.
 
-L'image est portée par `#app-shell::after` et **pas** par `background-image` du shell. Deux raisons, les deux nécessaires :
-- `opacity` (.62 en clair, .5 en sombre) l'atténue sans toucher à l'aplat de papier en dessous ;
-- un `mask-image` la fait disparaître sous le **bandeau seul** (34px pleins, fondu jusqu'à 78px).
+Ils ont d'abord été intégrés comme huit images de fond pleine page (une par écran et par thème, 273 Ko). Ça ne marchait pas, pour une raison qui vaut d'être retenue : **une composition figée ne connaît pas la mise en page**. Le brief de génération disait « dessins dans les coins, centre vide », alors que l'app met son contenu au centre et son châssis dans les coins — donc les dessins tombaient sous le bandeau et les boutons pendant que le milieu restait désespérément vide. Et une image calée sur un écran de 844pt tombe à côté sur un téléphone plus haut.
 
-Le masque a d'abord fondu 128px en haut et 132px en bas, et c'était une erreur : c'est exactement là que sont les griffonnages, donc on les effaçait tous pour protéger deux lignes de texte. Le texte posé à même le fond est désormais protégé par un **halo de papier** (`text-shadow` en `var(--paper)` sur `.app-bar-title`, `.tagline`, `.section-heading`, `.lobby-name`, `.stat-value`…). On protège le texte au lieu de cacher l'image.
+`PAPER_DOODLES` place donc chaque dessin à la main, par écran. Chacun est ancré **en haut** (`t`), **en bas** (`b`) ou **au centre** (`c`, décalage en px) : le bandeau et la barre du bas ont une hauteur fixe, un dessin calé dessus reste à sa place quelle que soit la hauteur de l'écran, là où un pourcentage dériverait. `x` positionne depuis la gauche, `rx` depuis la droite.
 
-**Les compositions ne collent pas encore à la mise en page.** Le brief de génération disait « griffonnages dans les coins, centre vide » ; or dans l'app c'est l'inverse, le contenu est au centre et les coins portent le bandeau et les boutons. Mesure des bandes réellement libres, à 390×844 :
+Les bandes réellement libres, mesurées à 390×844 :
 
 | écran | bandes libres (px depuis le haut) |
 |---|---|
@@ -128,9 +127,15 @@ Le masque a d'abord fondu 128px en haut et 132px en bas, et c'était une erreur 
 | manche | 660–760 |
 | podium | 60–180, 300–760 |
 
-C'est à ces zones-là qu'il faut demander les dessins si on régénère les images. Le salon n'ayant aucune bande libre, son fond est descendu à `opacity:.3` et ne sert plus que de texture. Pour mesurer à nouveau après un changement de mise en page : parcourir l'écran par bandes de 20px et sommer l'union des rectangles des éléments d'UI, une bande sous 12 % d'occupation est libre.
+Le **salon n'a aucune bande libre** : sa liste `PAPER_DOODLES.salon` est vide exprès, il ne garde que le papier réglé. Pour remesurer après un changement de mise en page : parcourir l'écran par bandes de 20px et sommer l'union des rectangles des éléments d'UI, une bande sous 12 % d'occupation est libre.
 
-`bgForScreen(screen, phase)` choisit le fond et `renderTop()` le pose en `data-bg` sur le shell. Un écran sans image déclarée retombe sur le papier uni du shell, jamais sur du blanc.
+Deux pièges rencontrés au détourage, si tu dois refaire l'extraction : la luminance doit être calculée **en flottant** (`0.299*r + ...` déborde en `int16` et rend des valeurs négatives), et le seuil doit être mesuré sur une bande de page **sans dessin** — `lum < 170` et `bleu - rouge > 25` attrape l'encre et 0 % des lignes du cahier. Trop haut, les lignes passent pour de l'encre, se connectent d'un bord à l'autre et fusionnent tous les dessins en un seul bloc pleine largeur.
+
+Le réglage est le **fond du calque** et les griffonnages en sont les **enfants** : c'est ce qui met l'encre par-dessus les lignes. En les mettant tous les deux à plat (`::after` pour le réglage), les lignes se dessinaient sur les dessins.
+
+Le texte posé à même le fond est protégé par un **halo de papier** (`text-shadow` en `var(--paper)` sur `.app-bar-title`, `.tagline`, `.section-heading`, `.lobby-name`, `.stat-value`…) plutôt que par un masque sur l'image : on protège le texte au lieu de cacher les dessins.
+
+`bgForScreen(screen, phase)` choisit le jeu de griffonnages et `renderTop()` le pose en `data-bg` sur le shell. Le calque n'est reconstruit **que si l'écran change** : `renderTop()` tourne à chaque snapshot Firebase, inutile de réécrire onze `<span>` à chaque battement de cœur.
 
 ## Points d'attention connus
 

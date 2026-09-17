@@ -16,7 +16,7 @@ Identité "carnet de scores" : fond papier crème avec une grille de points, enc
 
 Trois polices avec un rôle chacune : **Fraunces** pour les titres et les gros chiffres, **Inter** pour l'interface, **JetBrains Mono** pour tout ce qui est chiffré (minuteur, scores). Les icônes sont des SVG inline ; les emojis restent réservés aux avatars des joueurs.
 
-Chaque écran est posé sur une **page de cahier** réglée, griffonnée au stylo bille — fusée et avion en papier sur l'accueil, cartable et ballon dans la salle d'attente, chronomètre et sablier pendant la manche.
+Chaque écran est posé sur une **page de cahier** réglée, griffonnée au stylo bille — fusée et avion en papier sur l'accueil, chronomètre et sablier pendant la manche, coupe et feux d'artifice sur le podium. Les lignes sont tracées en CSS, les griffonnages sont des masques recolorés selon le thème et placés dans les zones que l'interface laisse libres.
 
 Thème clair et thème sombre, suivant le réglage du système, fonds compris.
 
