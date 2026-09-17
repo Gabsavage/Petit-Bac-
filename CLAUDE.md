@@ -43,7 +43,8 @@ node --check /tmp/extracted.js
 games/{pin}/                    pin = code à 4 chiffres, sert aussi de clé Firebase
   hostName, hostKey             hostKey = clé du créateur, seul à pouvoir lancer une manche (handleStartRound)
   categories: [string, ...]
-  roundDurationMs, maxRounds    maxRounds: 0 = illimité, sinon 3/5/10
+  roundDurationMs, maxRounds    par défaut 120000 et 3 (DEFAULT_ROUND_MS / DEFAULT_MAX_ROUNDS)
+                                maxRounds: 0 = illimité, sinon 3/5/10
   createdAt, lastActivity       lastActivity sert au nettoyage auto (INACTIVITY_MS = 3 min)
   recentLetters: [string, ...]  13 dernières lettres tirées (RECENT_LETTERS_MAX), survit à "Rejouer"
   players/{key}: { name, emoji, color, seen }   seen = horodatage du dernier battement de coeur (10s)
@@ -58,6 +59,8 @@ games/{pin}/                    pin = code à 4 chiffres, sert aussi de clé Fir
   }
   history/{roundNumber}: <ancien currentRound archivé tel quel>
 ```
+
+Les deux valeurs par défaut doivent rester parmi les choix proposés dans la feuille de réglages (60/90/120s et 3/5/10/illimité) : sinon, à l'ouverture des réglages, aucun bouton n'apparaît actif.
 
 **Tirage des lettres** : `recentLetters` est la mémoire glissante des 13 dernières lettres, gardée à la racine de la partie et **pas** déduite de `history` — celui-ci est effacé par "Rejouer" et par la remise à zéro des scores, une lettre pouvait donc revenir juste après. Sur 19 lettres au pool, il en reste toujours 6 tirables. Les parties créées avant ce champ retombent sur l'historique (`recentLetters()`).
 

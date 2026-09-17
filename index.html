@@ -467,6 +467,11 @@ const LETTER_POOL = ['A','B','C','D','E','F','G','H','I','J','L','M','N','O','P'
 const RECENT_LETTERS_MAX = 13;   /* sur 19 lettres, il en reste toujours 6 tirables */
 const DEFAULT_CATEGORIES = ["Prénom","Pays / Villes","Métiers","Célébrité","Marque","Animal","Partie du corps","Nourriture"];
 const CATEGORIES_PER_GAME = 8;
+/* Réglages d'une partie fraîchement créée. Les deux valeurs doivent rester parmi
+   les choix proposés dans la feuille de réglages (60/90/120s, 3/5/10/illimité),
+   sinon aucun bouton n'apparaît actif à l'ouverture. */
+const DEFAULT_ROUND_MS = 120000;
+const DEFAULT_MAX_ROUNDS = 3;
 /* Banque de catégories, groupée par famille (une famille = un sous-tableau).
    Le tirage prend au plus une catégorie par famille et par tour de table, pour
    éviter une partie entièrement « bouffe » ou entièrement « culture ». Une
@@ -531,7 +536,7 @@ let draftColor = AVATAR_COLORS[0];
   } catch(e){}
 })();
 
-let state = { hostName:'', hostKey:'', maxRounds:0, categories: DEFAULT_CATEGORIES, roundDurationMs: 90000, players: {}, currentRound: null, history: {}, recentLetters: [] };
+let state = { hostName:'', hostKey:'', maxRounds:0, categories: DEFAULT_CATEGORIES, roundDurationMs: DEFAULT_ROUND_MS, players: {}, currentRound: null, history: {}, recentLetters: [] };
 let myName = '';
 let myKey = '';
 let localAnswers = {};
@@ -1114,8 +1119,8 @@ function attemptCreatePin(tries, name){
         createdAt: Date.now(),
         lastActivity: Date.now(),
         categories: randomCategories(CATEGORIES_PER_GAME),
-        roundDurationMs: 90000,
-        maxRounds: 0,
+        roundDurationMs: DEFAULT_ROUND_MS,
+        maxRounds: DEFAULT_MAX_ROUNDS,
         players: players,
         currentRound: null,
         history: {}
@@ -1221,7 +1226,7 @@ function roomSnapshotHandler(snap){
     hostKey: val.hostKey || '',
     maxRounds: (val.maxRounds !== undefined && val.maxRounds !== null) ? val.maxRounds : 0,
     categories: val.categories || DEFAULT_CATEGORIES,
-    roundDurationMs: val.roundDurationMs || 90000,
+    roundDurationMs: val.roundDurationMs || DEFAULT_ROUND_MS,
     players: val.players || {},
     currentRound: val.currentRound || null,
     history: val.history || {},
@@ -1288,7 +1293,7 @@ function renderLobbyContent(s){
 
   /* 2. Les règles du match, lisibles sans ouvrir les réglages. */
   const rounds = s.maxRounds ? String(s.maxRounds) : '∞';
-  const secs = Math.round((s.roundDurationMs || 90000) / 1000);
+  const secs = Math.round((s.roundDurationMs || DEFAULT_ROUND_MS) / 1000);
   html += '<div class="rule-row">' +
     '<button type="button" class="rule-chip" data-action="open-menu">'+icon('flag')+'<b>'+rounds+'</b><span>manche'+(s.maxRounds === 1 ? '' : 's')+'</span></button>' +
     '<button type="button" class="rule-chip" data-action="open-menu">'+icon('bolt')+'<b>'+secs+'</b><span>secondes</span></button>' +
@@ -1632,7 +1637,7 @@ function sheetContentHtml(s){
     '</div>';
     html += '<p class="section-heading">Durée d’une manche</p>';
     html += '<div class="duration-choices">' + [60000,90000,120000].map(function(ms){
-      const active = (s.roundDurationMs||90000) === ms ? ' active' : '';
+      const active = (s.roundDurationMs||DEFAULT_ROUND_MS) === ms ? ' active' : '';
       return '<button type="button" class="cta secondary'+active+'" data-action="set-duration" data-ms="'+ms+'">'+(ms/1000)+'s</button>';
     }).join('') + '</div>';
     html += '<p class="section-heading">Nombre de manches</p>';
@@ -1707,7 +1712,7 @@ function updateTimerUI(){
     totalSec = FINISH_GRACE_MS/1000;
     remain = Math.max(0, Math.ceil((round.finishedAt + FINISH_GRACE_MS - now)/1000));
   } else {
-    totalSec = Math.max(1, Math.round((state.roundDurationMs||90000)/1000));
+    totalSec = Math.max(1, Math.round((state.roundDurationMs||DEFAULT_ROUND_MS)/1000));
     remain = Math.max(0, Math.ceil((round.endTime - now)/1000));
   }
   const label = document.getElementById('timer-display');
@@ -1849,7 +1854,7 @@ function handleStartRound(){
   const number = historyList(state).length + 1;
   const revealAt = Date.now() + COUNTDOWN_MS;
   roomRef.update({
-    currentRound: { number: number, letter: letter, revealAt: revealAt, endTime: revealAt + (state.roundDurationMs || 90000) },
+    currentRound: { number: number, letter: letter, revealAt: revealAt, endTime: revealAt + (state.roundDurationMs || DEFAULT_ROUND_MS) },
     recentLetters: pushRecentLetter(recent, letter),
     lastActivity: Date.now()
   }).then(function(){ setBusy(false,''); }).catch(function(){ setBusy(false,''); showToast('Erreur, réessaie.'); });
@@ -1863,7 +1868,7 @@ function handleNextRound(){
   const revealAt = Date.now() + COUNTDOWN_MS;
   const updates = {};
   updates['history/' + round.number] = round;
-  updates['currentRound'] = { number: round.number + 1, letter: letter, revealAt: revealAt, endTime: revealAt + (state.roundDurationMs || 90000) };
+  updates['currentRound'] = { number: round.number + 1, letter: letter, revealAt: revealAt, endTime: revealAt + (state.roundDurationMs || DEFAULT_ROUND_MS) };
   updates['recentLetters'] = pushRecentLetter(recent, letter);
   updates['lastActivity'] = Date.now();
   roomRef.update(updates).then(function(){ setBusy(false,''); }).catch(function(){ setBusy(false,''); showToast('Erreur, réessaie.'); });
