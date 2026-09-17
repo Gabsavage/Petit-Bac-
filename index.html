@@ -139,6 +139,9 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
 .players-grid{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;}
 .chip{display:inline-flex;align-items:center;gap:6px;background:var(--paper-raised);border:1.5px solid var(--ink);
   border-radius:100px;padding:6px 13px;font-size:.82rem;font-weight:600;color:var(--ink);box-shadow:1.5px 1.5px 0 var(--ink);}
+/* Emoji purement décoratif devant le nom d'une catégorie : légèrement plus gros
+   que le texte, gardé hors de la police d'interface pour éviter les rendus bâtards. */
+.chip-emoji{font-size:1rem;line-height:1;margin-left:-2px;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;}
 /* Bloc centré verticalement, avec un écart franc entre le logo et les boutons.
    La hauteur du logo dépend donc de ce qu'il y a en dessous (le bloc de stats
    est là ou non) : c'est sans conséquence, le splash mesure sa cible au moment
@@ -429,6 +432,29 @@ const db = firebase.database();
 const LETTER_POOL = ['A','B','C','D','E','F','G','H','I','J','L','M','N','O','P','R','S','T','V'];
 const RECENT_LETTERS_MAX = 13;   /* sur 19 lettres, il en reste toujours 6 tirables */
 const DEFAULT_CATEGORIES = ["Prénom","Pays / Villes","Métiers","Célébrité","Marque","Animal","Partie du corps","Nourriture"];
+const CATEGORIES_PER_GAME = 8;
+/* Banque de catégories, groupée par famille (une famille = un sous-tableau).
+   Le tirage prend au plus une catégorie par famille et par tour de table, pour
+   éviter une partie entièrement « bouffe » ou entièrement « culture ». Une
+   catégorie n’apparaît que dans une seule famille : deux entrées peuvent se
+   retrouver ensemble dans la même partie, donc on évite les quasi-doublons
+   (pas de « Animal » et « Animal sauvage »). */
+const CATEGORY_BANK = [
+  /* classiques */
+  ['Prénom','Pays','Ville','Métier','Animal','Objet','Fruit ou légume','Couleur'],
+  /* lieux et voyage */
+  ['Capitale','Monument ou lieu célèbre','Moyen de transport','Île, mer ou océan','Destination de vacances','Ce qu’on trouve dans une ville','Région ou département','Magasin ou commerce'],
+  /* culture */
+  ['Célébrité','Film ou série','Chanteur ou groupe','Personnage de fiction','Livre ou BD','Jeu vidéo ou jeu de société','Sport','Instrument de musique'],
+  /* nourriture */
+  ['Nourriture','Boisson','Dessert','Plat de restaurant','Ce qu’on met dans un sandwich','Fromage ou charcuterie','Ce qu’il y a dans le frigo'],
+  /* quotidien */
+  ['Marque','Vêtement ou accessoire','Meuble','Application ou site web','Objet de la salle de bain','Objet de la cuisine','Ce qu’on emporte en vacances','Outil de bricolage'],
+  /* nature et corps */
+  ['Partie du corps','Arbre ou fleur','Oiseau ou insecte','Ce qu’on trouve à la mer','Élément de la nature','Maladie ou symptôme','Phénomène météo','Ce qu’on trouve dans un jardin'],
+  /* fun */
+  ['Ce qui fait peur','Truc qu’on perd tout le temps','Ce qu’on trouve dans une salle de classe','Superhéros ou méchant','Personnage de dessin animé','Ce qu’on offre en cadeau','Ce qui coûte cher']
+];
 const AVATAR_EMOJIS = ['😀','😎','🤠','🥳','🤖','👻','🐶','🐱','🦊','🐻','🐼','🐸','🦁','🐵','🦄','🐙','🦖','🐧','🐰','🦉','🐢','🦋','🐝','🍕'];
 const AVATAR_COLORS = ['#FF6B5B','#FFC94D','#4CE0A0','#5B8DEF','#C77DFF','#FF7AA8','#4DD4E8','#F2A65A'];
 const RING_CIRC = 2 * Math.PI * 52;
@@ -519,6 +545,75 @@ function recentLetters(s){
 function pushRecentLetter(list, letter){
   const next = list.concat([letter]);
   return next.slice(Math.max(0, next.length - RECENT_LETTERS_MAX));
+}
+/* Tirage des catégories à la création d'une partie. On mélange chaque famille,
+   puis on fait un tour de table (une catégorie par famille, puis on recommence) :
+   ça garantit un étalement sur toutes les familles même quand on en tire 8 sur 7
+   familles, là où un tirage aléatoire à plat sort régulièrement 4 catégories
+   « nourriture ». L'ordre final est remélangé pour que la 1re famille ne soit pas
+   toujours en tête. */
+function shuffled(list){
+  const out = list.slice();
+  for (let i = out.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = out[i]; out[i] = out[j]; out[j] = tmp;
+  }
+  return out;
+}
+function randomCategories(count){
+  const families = shuffled(CATEGORY_BANK).map(function(fam){ return shuffled(fam); });
+  let total = 0;
+  families.forEach(function(fam){ total += fam.length; });
+  const want = Math.min(count || CATEGORIES_PER_GAME, total);
+  const picked = [];
+  let pass = 0;
+  while (picked.length < want){
+    let added = 0;
+    for (let i = 0; i < families.length && picked.length < want; i++){
+      if (families[i].length > pass){ picked.push(families[i][pass]); added++; }
+    }
+    if (!added) break;   /* filet de sécurité : ne peut pas arriver avec want <= total */
+    pass++;
+  }
+  return shuffled(picked);
+}
+/* Pictogramme d'une catégorie, par mot-clé : les catégories peuvent être réécrites
+   à la main dans les réglages, donc pas de table nom -> emoji, on cherche un motif
+   dans le nom normalisé. L'ordre compte : du plus spécifique au plus générique
+   (« ville » avant « ile », « cuisine » avant « objet »). C'est décoratif : le nom
+   de la catégorie reste écrit à côté, l'emoji ne porte aucune information seul. */
+const CATEGORY_EMOJIS = [
+  ['prenom','\uD83D\uDE4B'], ['capitale','\uD83C\uDFDB\uFE0F'], ['pays','\uD83C\uDF0D'],
+  ['dans une ville','\uD83D\uDEA6'], ['ville','\uD83C\uDFD9\uFE0F'], ['region','\uD83D\uDDFA\uFE0F'], ['departement','\uD83D\uDDFA\uFE0F'],
+  ['monument','\uD83D\uDDFC'], ['transport','\uD83D\uDE97'], ['ocean','\uD83C\uDF0A'], ['la mer','\uD83D\uDC1A'],
+  ['emporte en vacances','\uD83E\uDDF3'], ['vacances','\uD83C\uDFD6\uFE0F'], ['magasin','\uD83D\uDECD\uFE0F'], ['commerce','\uD83D\uDECD\uFE0F'],
+  ['celebrite','\u2B50'], ['film','\uD83C\uDFAC'], ['serie','\uD83C\uDFAC'],
+  ['chanteur','\uD83C\uDFA4'], ['musique','\uD83C\uDFB5'], ['instrument','\uD83C\uDFB8'],
+  ['livre','\uD83D\uDCDA'], ['dessin anime','\uD83D\uDCFA'], ['superheros','\uD83E\uDDB8'], ['mechant','\uD83E\uDDB8'],
+  ['personnage','\uD83C\uDFAD'], ['jeu','\uD83C\uDFB2'], ['sport','\u26BD'],
+  ['animal','\uD83D\uDC3E'], ['oiseau','\uD83D\uDC26'], ['insecte','\uD83D\uDC1E'],
+  ['arbre','\uD83C\uDF33'], ['fleur','\uD83C\uDF3B'], ['jardin','\uD83E\uDEB4'],
+  ['fruit','\uD83C\uDF4E'], ['legume','\uD83E\uDD55'],
+  ['sandwich','\uD83E\uDD6A'], ['fromage','\uD83E\uDDC0'], ['charcuterie','\uD83E\uDDC0'],
+  ['dessert','\uD83C\uDF70'], ['boisson','\uD83E\uDD64'], ['frigo','\uD83E\uDD6B'],
+  ['plat','\uD83C\uDF5B'], ['nourriture','\uD83C\uDF7D\uFE0F'], ['aliment','\uD83C\uDF7D\uFE0F'],
+  ['vetement','\uD83D\uDC55'], ['accessoire','\uD83D\uDC55'], ['marque','\uD83C\uDFF7\uFE0F'],
+  ['meuble','\uD83D\uDECB\uFE0F'], ['application','\uD83D\uDCF1'], ['site web','\uD83D\uDCF1'],
+  ['salle de bain','\uD83D\uDEC1'], ['cuisine','\uD83C\uDF73'],
+  ['outil','\uD83D\uDD27'], ['bricolage','\uD83D\uDD27'],
+  ['corps','\uD83D\uDD90\uFE0F'], ['maladie','\uD83E\uDD12'], ['symptome','\uD83E\uDD12'],
+  ['meteo','\uD83C\uDF26\uFE0F'], ['nature','\uD83C\uDF43'], ['couleur','\uD83C\uDFA8'],
+  ['salle de classe','\uD83C\uDF92'], ['peur','\uD83D\uDC7B'], ['perd','\uD83D\uDD0D'],
+  ['cadeau','\uD83C\uDF81'], ['coute cher','\uD83D\uDCB0'], ['metier','\uD83E\uDDF0'],
+  ['objet','\uD83D\uDCE6'], ['truc','\uD83D\uDCE6']
+];
+const CATEGORY_EMOJI_FALLBACK = '\uD83D\uDCDD';
+function categoryEmoji(name){
+  const n = normalize(name);
+  for (let i = 0; i < CATEGORY_EMOJIS.length; i++){
+    if (n.indexOf(CATEGORY_EMOJIS[i][0]) !== -1) return CATEGORY_EMOJIS[i][1];
+  }
+  return CATEGORY_EMOJI_FALLBACK;
 }
 function scrabbleValue(letter){
   return SCRABBLE_VALUES[String(letter||'').toUpperCase()] || 1;
@@ -918,7 +1013,7 @@ function attemptCreatePin(tries, name){
         hostKey: key,
         createdAt: Date.now(),
         lastActivity: Date.now(),
-        categories: DEFAULT_CATEGORIES,
+        categories: randomCategories(CATEGORIES_PER_GAME),
         roundDurationMs: 90000,
         maxRounds: 0,
         players: players,
@@ -1077,7 +1172,9 @@ function renderLobbyContent(s){
       '</div>';
   }).join('') + '</div>';
   html += '<p class="section-heading">Catégories</p>';
-  html += '<div class="players-grid">' + s.categories.map(function(c){ return '<span class="chip">'+esc(c)+'</span>'; }).join('') + '</div>';
+  html += '<div class="players-grid">' + s.categories.map(function(c){
+    return '<span class="chip"><span class="chip-emoji" aria-hidden="true">'+categoryEmoji(c)+'</span>'+esc(c)+'</span>';
+  }).join('') + '</div>';
   return html;
 }
 function renderLobbyBottom(s){
@@ -1341,7 +1438,10 @@ function sheetContentHtml(s){
   if (lobby){
     html += '<p class="section-heading" style="margin-top:0;">Catégories (une par ligne)</p>';
     html += '<textarea id="categories-textarea" class="field" rows="8">'+esc(s.categories.join('\n'))+'</textarea>';
-    html += '<button type="button" class="cta secondary" data-action="save-categories" style="margin-top:2px;">Enregistrer les catégories</button>';
+    html += '<div class="sheet-actions" style="margin-top:2px;">' +
+      '<button type="button" class="cta secondary" data-action="save-categories">Enregistrer les catégories</button>' +
+      '<button type="button" class="cta secondary" data-action="shuffle-categories">'+icon('refresh')+' Tirer d’autres catégories</button>' +
+    '</div>';
     html += '<p class="section-heading">Durée d’une manche</p>';
     html += '<div class="duration-choices">' + [60000,90000,120000].map(function(ms){
       const active = (s.roundDurationMs||90000) === ms ? ' active' : '';
@@ -1638,6 +1738,19 @@ function handleSaveCategories(){
   setBusy(true, 'Enregistrement…');
   roomRef.update({ categories: list, lastActivity: Date.now() }).then(function(){ setBusy(false,''); closeSheet(); }).catch(function(){ setBusy(false,''); showToast('Erreur.'); });
 }
+/* Retire un jeu de catégories dans le salon. On écrit dans Firebase (tout le monde
+   voit le nouveau jeu) ET dans le textarea ouvert : la feuille n'est pas re-rendue
+   par le snapshot, sans ça elle continuerait d'afficher l'ancienne liste. */
+function handleShuffleCategories(){
+  if (!roomRef) return;
+  const list = randomCategories(CATEGORIES_PER_GAME);
+  setBusy(true, 'Tirage\u2026');
+  roomRef.update({ categories: list, lastActivity: Date.now() }).then(function(){
+    setBusy(false,'');
+    const ta = document.getElementById('categories-textarea');
+    if (ta) ta.value = list.join('\n');
+  }).catch(function(){ setBusy(false,''); showToast('Erreur.'); });
+}
 function handleSetDuration(ms){
   if (!roomRef) return;
   setBusy(true, '…');
@@ -1769,6 +1882,7 @@ document.addEventListener('click', function(e){
   else if (action === 'view-leaderboard') handleShowLeaderboard();
   else if (action === 'vote') handleVote(btn.dataset.cat, btn.dataset.target, btn.dataset.value);
   else if (action === 'save-categories') handleSaveCategories();
+  else if (action === 'shuffle-categories') handleShuffleCategories();
   else if (action === 'set-duration') handleSetDuration(parseInt(btn.dataset.ms,10));
   else if (action === 'set-max-rounds') handleSetMaxRounds(parseInt(btn.dataset.mr,10));
   else if (action === 'reset-scores') handleResetScores();

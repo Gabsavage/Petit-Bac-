@@ -45,7 +45,7 @@ La base Firebase utilisée est celle de prod (projet `petit-bac-c24bf`) — test
 1. **Accueil** — écran de lancement animé (les tuiles PETIT BAC tombent une à une), puis deux actions : créer une partie, ou rejoindre depuis la liste des parties en cours. Un bloc de statistiques locales (manches jouées, record, dernière lettre) apparaît une fois qu'on a joué. L'avatar en haut à droite ouvre le profil.
 2. **Profil** — avatar (emoji + couleur) et prénom configurés une fois pour toutes, depuis l'avatar du bandeau : ensuite, créer ou rejoindre une partie se fait en un geste, sans repasser par un formulaire. Le profil est stocké sur l'appareil uniquement, rien n'est publié.
 3. **Création** — la partie obtient un code à 4 chiffres, qui sert de clé Firebase mais n'est jamais affiché : on rejoint par QR code, par lien (`?pin=XXXX`) ou depuis la liste.
-4. **Salle d'attente** — QR code à scanner, joueurs présents, catégories. Seul l'hôte lance la manche. Les réglages (catégories, durée 60/90/120s, nombre de manches 3/5/10/∞) sont accessibles juste au-dessus du bouton de lancement.
+4. **Salle d'attente** — QR code à scanner, joueurs présents, et les huit catégories de la partie, chacune avec son picto. Elles sont **tirées au sort** à la création, dans une banque groupée par famille (classiques, lieux, culture, nourriture, quotidien, nature, fun) pour que deux parties ne se ressemblent pas. Seul l'hôte lance la manche. Les réglages (catégories — à réécrire à la main ou à retirer au sort —, durée 60/90/120s, nombre de manches 3/5/10/∞) sont accessibles juste au-dessus du bouton de lancement.
 5. **Manche** — décompte de 3s, puis la lettre s'affiche à gauche du minuteur. Le premier qui clique "J'ai fini" déclenche 5s de grâce pour les autres, après quoi la manche se termine pour tout le monde.
 6. **Validation** — catégorie par catégorie, synchronisée : tout le monde voit la même au même moment, et n'importe qui fait avancer le groupe. Les réponses comptent par défaut, un bouton permet de refuser celles qui ne vont pas.
 7. **Podium** — roulement de tambour, puis révélation par paliers : 3e, 2e, puis la 1re place sous un projecteur avec des confettis, et enfin le reste du classement.
@@ -57,6 +57,7 @@ La base Firebase utilisée est celle de prod (projet `petit-bac-c24bf`) — test
 - Une réponse d'**une seule lettre** vaut 0 automatiquement, sans passer par un vote
 - Les **fautes de frappe** comptent comme des doublons : "Hongrie" et "Hongrir" donnent 1 pt chacun et non 2 réponses uniques (distance de Levenshtein, seuil proportionnel à la longueur du mot)
 - Une lettre déjà tirée ne peut pas revenir avant **13 tirages**, y compris après un "Rejouer"
+- Les catégories sont tirées au sort à la création de la partie, avec au plus deux catégories de la même famille — et restent modifiables dans les réglages du salon avant le lancement
 
 ## Autres comportements
 
