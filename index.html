@@ -179,7 +179,7 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
 .letter-badge.small{width:62px;height:62px;font-size:1.75rem;border-radius:12px;border-width:1.75px;box-shadow:3px 3px 0 var(--ink);margin-bottom:2px;}
 .letter-badge.small .tile-pts{right:5px;bottom:3px;font-size:.55rem;}
 @keyframes popIn{from{transform:scale(.4);opacity:0;}to{transform:scale(1);opacity:1;}}
-@media (prefers-reduced-motion: reduce){.letter-badge,.countdown-number.pulse{animation:none;}}
+@media (prefers-reduced-motion: reduce){.letter-badge,.countdown-number.pulse,.drum-tile,.podium-spotlight{animation:none;}}
 .play-screen{display:flex;flex-direction:column;height:100%;}
 .play-header{display:flex;align-items:center;justify-content:center;gap:22px;padding:10px 0 4px;flex:0 0 auto;}
 .play-status{width:88px;height:88px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -241,8 +241,28 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
 .vote-btn .icon{width:15px;height:15px;}
 .vote-btn.active-yes{background:var(--success-tint);border-color:var(--success);color:var(--success);}
 .vote-btn.active-no{background:var(--danger-tint);border-color:var(--danger);color:var(--danger);}
+.drumroll{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;}
+.drum-tiles{display:flex;gap:10px;margin:20px 0 16px;}
+.drum-tile{width:52px;height:52px;font-size:1.7rem;color:var(--ink-soft);
+  animation:drumBounce .36s ease-in-out infinite alternate;}
+@keyframes drumBounce{from{transform:translateY(0) rotate(-2deg);}to{transform:translateY(-13px) rotate(2deg);}}
+.drum-caption{font-family:var(--font-mono);font-size:.8rem;letter-spacing:.04em;color:var(--ink-soft);margin:0;}
+.fx-layer{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:45;}
+.confetti{position:absolute;top:-18px;border-radius:2px;
+  animation-name:confettiFall;animation-timing-function:linear;animation-fill-mode:forwards;}
+@keyframes confettiFall{
+  0%{opacity:1;transform:translate3d(0,0,0) rotate(0deg);}
+  100%{opacity:0;transform:translate3d(var(--drift),108vh,0) rotate(var(--rot));}
+}
 .podium{display:flex;align-items:flex-end;justify-content:center;gap:10px;margin:20px 0 10px;}
-.podium-step{display:flex;flex-direction:column;align-items:center;gap:6px;width:98px;}
+.podium-step{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;width:98px;}
+.podium-step > .avatar,.podium-step > .podium-name,.podium-step > .podium-score,.podium-step > .podium-block{position:relative;z-index:1;}
+.podium-spotlight{position:absolute;left:50%;top:-18px;width:160px;height:210px;transform:translateX(-50%);
+  background:linear-gradient(to bottom,rgba(226,166,58,.62),rgba(226,166,58,.12) 72%,rgba(226,166,58,0));
+  clip-path:polygon(36% 0,64% 0,100% 100%,0 100%);z-index:0;pointer-events:none;
+  animation:spotlightPulse 2.6s ease-in-out infinite alternate;}
+.podium-step.p0 .avatar.big{box-shadow:2px 2px 0 var(--ink),0 0 0 5px rgba(226,166,58,.32);}
+@keyframes spotlightPulse{from{opacity:.7;}to{opacity:1;}}
 .podium-step.empty{visibility:hidden;}
 .podium-step.p0{order:2;}
 .podium-step.p1{order:1;}
@@ -290,6 +310,7 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
   <div id="scoreboard-strip" class="scoreboard-strip"></div>
   <main id="content" class="content"><p class="muted">Connexion…</p></main>
   <footer id="bottom-bar" class="bottom-bar"></footer>
+  <div id="fx-layer" class="fx-layer" aria-hidden="true"></div>
   <p id="status-line" class="status-toast"></p>
   <div id="sheet-backdrop" class="sheet-backdrop" data-action="close-menu"></div>
   <div id="bottom-sheet" class="bottom-sheet">
@@ -321,6 +342,7 @@ const AVATAR_COLORS = ['#FF6B5B','#FFC94D','#4CE0A0','#5B8DEF','#C77DFF','#FF7AA
 const RING_CIRC = 2 * Math.PI * 52;
 const COUNTDOWN_MS = 3000;
 const FINISH_GRACE_MS = 5000;
+const DRUMROLL_MS = 1800;
 const INACTIVITY_MS = 3 * 60 * 1000;
 const SCRABBLE_VALUES = {A:1,B:3,C:3,D:2,E:1,F:4,G:2,H:4,I:1,J:8,K:10,L:1,M:2,N:1,O:1,P:3,Q:8,R:1,S:1,T:1,U:1,V:4,W:10,X:10,Y:10,Z:10};
 
@@ -349,6 +371,8 @@ let hasAutoSubmitted = false;
 let lastPhase = null;
 let lastCountdownLabel = null;
 let viewingLeaderboard = false;
+let podiumRevealed = false;
+let podiumRevealAt = 0;
 let reviewCatIndex = 0;
 let hasRenderedOnce = false;
 
@@ -848,13 +872,54 @@ function renderRevealBottom(s){
   }
   return '<button type="button" class="cta" data-action="view-leaderboard">'+icon('trophy')+' Voir le classement</button>';
 }
+function renderDrumrollContent(s){
+  const round = s.currentRound;
+  const isFinal = s.maxRounds > 0 && round.number >= s.maxRounds;
+  let html = '<div class="drumroll">';
+  html += '<p class="section-title">' + (isFinal ? 'Et le vainqueur est…' : 'Résultats de la manche ' + round.number + '…') + '</p>';
+  html += '<div class="drum-tiles">';
+  for (let i = 0; i < 3; i++){
+    html += '<span class="tile drum-tile" style="animation-delay:' + (i * 0.12) + 's">?</span>';
+  }
+  html += '</div>';
+  html += '<p class="drum-caption">Roulement de tambour…</p>';
+  html += '</div>';
+  return html;
+}
+function launchConfetti(count){
+  const layer = document.getElementById('fx-layer');
+  if (!layer) return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const colors = ['#C1401C','#E2A63A','#2E6E4F','#5B8DEF','#C77DFF','#F6F1E4'];
+  let html = '';
+  for (let i = 0; i < count; i++){
+    const w = 6 + Math.round(Math.random() * 5);
+    const h = 9 + Math.round(Math.random() * 7);
+    html += '<span class="confetti" style="left:' + Math.round(Math.random() * 100) + '%;' +
+      'width:' + w + 'px;height:' + h + 'px;' +
+      'background:' + colors[Math.floor(Math.random() * colors.length)] + ';' +
+      'animation-delay:' + (Math.random() * 0.45).toFixed(2) + 's;' +
+      'animation-duration:' + (1.7 + Math.random() * 1.1).toFixed(2) + 's;' +
+      '--drift:' + Math.round((Math.random() * 2 - 1) * 70) + 'px;' +
+      '--rot:' + Math.round(180 + Math.random() * 540) + 'deg;"></span>';
+  }
+  layer.innerHTML = html;
+  setTimeout(function(){ layer.innerHTML = ''; }, 3600);
+}
+function revealPodium(){
+  podiumRevealed = true;
+  const isFinal = state.currentRound && state.maxRounds > 0 && state.currentRound.number >= state.maxRounds;
+  launchConfetti(isFinal ? 60 : 34);
+  renderTop();
+}
 function renderPodium(s, sorted, totals){
   const order = [1,0,2];
   let html = '<div class="podium">';
   order.forEach(function(pos){
     const k = sorted[pos];
     if (!k){ html += '<div class="podium-step empty p'+pos+'"></div>'; return; }
-    html += '<div class="podium-step p'+pos+'">' + playerAvatarHtml(s.players[k],'big') +
+    html += '<div class="podium-step p'+pos+'">' + (pos === 0 ? '<span class="podium-spotlight"></span>' : '') +
+      playerAvatarHtml(s.players[k],'big') +
       '<span class="podium-name">'+esc(s.players[k].name)+'</span>' +
       '<span class="podium-score">'+(totals[k]||0)+'</span>' +
       '<div class="podium-block rank-'+(pos+1)+'">'+(pos+1)+'</div></div>';
@@ -998,7 +1063,8 @@ function renderTop(){
   const roomPhase = inRoom ? getPhase(state) : null;
   document.getElementById('menu-btn').hidden = !inRoom || roomPhase === 'lobby';
   document.getElementById('menu-btn').innerHTML = icon('settings');
-  document.getElementById('scoreboard-strip').innerHTML = (inRoom && roomPhase !== 'lobby') ? renderScoreboard(state) : '';
+  const suspense = inRoom && roomPhase === 'reveal' && viewingLeaderboard && !podiumRevealed;
+  document.getElementById('scoreboard-strip').innerHTML = (inRoom && roomPhase !== 'lobby' && !suspense) ? renderScoreboard(state) : '';
 
   const activeEl = document.activeElement;
   const preserveId = (activeEl && activeEl.id) || null;
@@ -1015,12 +1081,13 @@ function renderTop(){
     bottomHtml = '<button type="submit" form="join-form" class="cta">Rejoindre</button>';
   } else if (uiScreen === 'room'){
     const phase = roomPhase;
-    if (phase !== lastPhase && phase === 'reveal'){ viewingLeaderboard = false; reviewCatIndex = 0; }
+    if (phase !== lastPhase && phase === 'reveal'){ viewingLeaderboard = false; podiumRevealed = false; reviewCatIndex = 0; }
     lastPhase = phase;
     if (phase !== 'countdown') lastCountdownLabel = null;
     if (phase === 'lobby'){ contentHtml = renderLobbyContent(state); bottomHtml = renderLobbyBottom(state); }
     else if (phase === 'countdown'){ contentHtml = renderCountdownContent(); bottomHtml = ''; }
     else if (phase === 'playing'){ contentHtml = renderPlayingContent(state); bottomHtml = renderPlayingBottom(); }
+    else if (viewingLeaderboard && !podiumRevealed){ contentHtml = renderDrumrollContent(state); bottomHtml = ''; }
     else if (viewingLeaderboard){ contentHtml = renderLeaderboardContent(state); bottomHtml = renderLeaderboardBottom(state); }
     else { contentHtml = renderRevealContent(state); bottomHtml = renderRevealBottom(state); }
   }
@@ -1190,7 +1257,10 @@ function tick(){
   if (phase !== lastPhase){ renderTop(); }
   if (phase === 'playing'){ updateTimerUI(); }
   else if (phase === 'countdown'){ updateCountdownUI(); }
-  else if (phase === 'reveal' && state.currentRound){ submitMyAnswers(); }
+  else if (phase === 'reveal' && state.currentRound){
+    submitMyAnswers();
+    if (viewingLeaderboard && !podiumRevealed && Date.now() >= podiumRevealAt) revealPodium();
+  }
 }
 document.addEventListener('visibilitychange', function(){
   if (!document.hidden) tick();
@@ -1218,7 +1288,7 @@ document.addEventListener('click', function(e){
   else if (action === 'finish-round') handleFinishRound();
   else if (action === 'review-next'){ reviewCatIndex = Math.min(reviewCatIndex+1, state.categories.length-1); renderTop(); }
   else if (action === 'review-prev'){ reviewCatIndex = Math.max(reviewCatIndex-1, 0); renderTop(); }
-  else if (action === 'view-leaderboard'){ viewingLeaderboard = true; renderTop(); }
+  else if (action === 'view-leaderboard'){ viewingLeaderboard = true; podiumRevealed = false; podiumRevealAt = Date.now() + DRUMROLL_MS; renderTop(); }
   else if (action === 'vote') handleVote(btn.dataset.cat, btn.dataset.target, btn.dataset.value);
   else if (action === 'save-categories') handleSaveCategories();
   else if (action === 'set-duration') handleSetDuration(parseInt(btn.dataset.ms,10));
