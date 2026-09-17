@@ -475,19 +475,19 @@ const CATEGORIES_PER_GAME = 8;
    (pas de « Animal » et « Animal sauvage »). */
 const CATEGORY_BANK = [
   /* classiques */
-  ['Prénom','Pays','Ville','Métier','Animal','Objet','Fruit ou légume','Couleur'],
+  ['Pr\u00e9nom','Pays','Ville','M\u00e9tier','Animal','Fruit ou l\u00e9gume','Couleur'],
   /* lieux et voyage */
-  ['Capitale','Monument ou lieu célèbre','Moyen de transport','Île, mer ou océan','Destination de vacances','Ce qu’on trouve dans une ville','Région ou département','Magasin ou commerce'],
+  ['Capitale','Monument ou lieu c\u00e9l\u00e8bre','Moyen de transport','\u00cele, mer ou oc\u00e9an','R\u00e9gion ou d\u00e9partement','Magasin ou commerce'],
   /* culture */
-  ['Célébrité','Film ou série','Chanteur ou groupe','Personnage de fiction','Livre ou BD','Jeu vidéo ou jeu de société','Sport','Instrument de musique'],
+  ['C\u00e9l\u00e9brit\u00e9','Film ou s\u00e9rie','Chanteur ou groupe','Personnage de fiction','Livre ou BD','Jeu vid\u00e9o ou jeu de soci\u00e9t\u00e9','Sport','Instrument de musique'],
   /* nourriture */
-  ['Nourriture','Boisson','Dessert','Plat de restaurant','Ce qu’on met dans un sandwich','Fromage ou charcuterie','Ce qu’il y a dans le frigo'],
+  ['Boisson','Dessert','Plat de restaurant','Ce qu\u2019on met dans un sandwich','Fromage ou charcuterie','\u00c9pice ou condiment','G\u00e2teau ou viennoiserie'],
   /* quotidien */
-  ['Marque','Vêtement ou accessoire','Meuble','Application ou site web','Objet de la salle de bain','Objet de la cuisine','Ce qu’on emporte en vacances','Outil de bricolage'],
+  ['Marque','V\u00eatement ou accessoire','Meuble','Application ou site web','Objet de la salle de bain','Objet de la cuisine','Outil de bricolage','Appareil \u00e9lectrom\u00e9nager'],
   /* nature et corps */
-  ['Partie du corps','Arbre ou fleur','Oiseau ou insecte','Ce qu’on trouve à la mer','Élément de la nature','Maladie ou symptôme','Phénomène météo','Ce qu’on trouve dans un jardin'],
-  /* fun */
-  ['Ce qui fait peur','Truc qu’on perd tout le temps','Ce qu’on trouve dans une salle de classe','Superhéros ou méchant','Personnage de dessin animé','Ce qu’on offre en cadeau','Ce qui coûte cher']
+  ['Partie du corps','Arbre ou fleur','Oiseau ou insecte','Poisson ou animal marin','Maladie ou sympt\u00f4me','Ph\u00e9nom\u00e8ne m\u00e9t\u00e9o','Pierre ou m\u00e9tal'],
+  /* pop et fun */
+  ['Ce qu\u2019on trouve dans une salle de classe','Superh\u00e9ros ou m\u00e9chant','Personnage de dessin anim\u00e9','Marque de voiture','\u00c9mission de t\u00e9l\u00e9','Danse ou style de musique','Club ou \u00e9quipe de sport','Youtubeur ou cr\u00e9ateur de contenu']
 ];
 const AVATAR_EMOJIS = ['😀','😎','🤠','🥳','🤖','👻','🐶','🐱','🦊','🐻','🐼','🐸','🦁','🐵','🦄','🐙','🦖','🐧','🐰','🦉','🐢','🦋','🐝','🍕'];
 const AVATAR_COLORS = ['#FF6B5B','#FFC94D','#4CE0A0','#5B8DEF','#C77DFF','#FF7AA8','#4DD4E8','#F2A65A'];
@@ -633,22 +633,25 @@ const CATEGORY_EMOJIS = [
   ['dans une ville','\uD83D\uDEA6'], ['ville','\uD83C\uDFD9\uFE0F'], ['region','\uD83D\uDDFA\uFE0F'], ['departement','\uD83D\uDDFA\uFE0F'],
   ['monument','\uD83D\uDDFC'], ['transport','\uD83D\uDE97'], ['ocean','\uD83C\uDF0A'], ['la mer','\uD83D\uDC1A'],
   ['emporte en vacances','\uD83E\uDDF3'], ['vacances','\uD83C\uDFD6\uFE0F'], ['magasin','\uD83D\uDECD\uFE0F'], ['commerce','\uD83D\uDECD\uFE0F'],
+  ['gateau','\uD83E\uDD50'], ['viennoiserie','\uD83E\uDD50'],   /* avant 'serie' : viennoi-SERIE */
   ['celebrite','\u2B50'], ['film','\uD83C\uDFAC'], ['serie','\uD83C\uDFAC'],
-  ['chanteur','\uD83C\uDFA4'], ['musique','\uD83C\uDFB5'], ['instrument','\uD83C\uDFB8'],
+  ['emission','\uD83C\uDF7F'], ['youtubeur','\uD83D\uDCF9'], ['createur de contenu','\uD83D\uDCF9'],
+  ['danse','\uD83D\uDC83'], ['chanteur','\uD83C\uDFA4'], ['musique','\uD83C\uDFB5'], ['instrument','\uD83C\uDFB8'],
   ['livre','\uD83D\uDCDA'], ['dessin anime','\uD83D\uDCFA'], ['superheros','\uD83E\uDDB8'], ['mechant','\uD83E\uDDB8'],
-  ['personnage','\uD83C\uDFAD'], ['jeu','\uD83C\uDFB2'], ['sport','\u26BD'],
-  ['animal','\uD83D\uDC3E'], ['oiseau','\uD83D\uDC26'], ['insecte','\uD83D\uDC1E'],
+  ['personnage','\uD83C\uDFAD'], ['jeu','\uD83C\uDFB2'], ['club','\uD83C\uDFDF\uFE0F'], ['equipe','\uD83C\uDFDF\uFE0F'], ['sport','\u26BD'],
+  ['poisson','\uD83D\uDC1F'], ['animal','\uD83D\uDC3E'], ['oiseau','\uD83D\uDC26'], ['insecte','\uD83D\uDC1E'],
   ['arbre','\uD83C\uDF33'], ['fleur','\uD83C\uDF3B'], ['jardin','\uD83E\uDEB4'],
   ['fruit','\uD83C\uDF4E'], ['legume','\uD83E\uDD55'],
   ['sandwich','\uD83E\uDD6A'], ['fromage','\uD83E\uDDC0'], ['charcuterie','\uD83E\uDDC0'],
+  ['epice','\uD83E\uDDC2'], ['condiment','\uD83E\uDDC2'],
   ['dessert','\uD83C\uDF70'], ['boisson','\uD83E\uDD64'], ['frigo','\uD83E\uDD6B'],
   ['plat','\uD83C\uDF5B'], ['nourriture','\uD83C\uDF7D\uFE0F'], ['aliment','\uD83C\uDF7D\uFE0F'],
-  ['vetement','\uD83D\uDC55'], ['accessoire','\uD83D\uDC55'], ['marque','\uD83C\uDFF7\uFE0F'],
-  ['meuble','\uD83D\uDECB\uFE0F'], ['application','\uD83D\uDCF1'], ['site web','\uD83D\uDCF1'],
+  ['vetement','\uD83D\uDC55'], ['accessoire','\uD83D\uDC55'], ['marque de voiture','\uD83C\uDFCE\uFE0F'], ['marque','\uD83C\uDFF7\uFE0F'],
+  ['electromenager','\uD83D\uDD0C'], ['meuble','\uD83D\uDECB\uFE0F'], ['application','\uD83D\uDCF1'], ['site web','\uD83D\uDCF1'],
   ['salle de bain','\uD83D\uDEC1'], ['cuisine','\uD83C\uDF73'],
   ['outil','\uD83D\uDD27'], ['bricolage','\uD83D\uDD27'],
   ['corps','\uD83D\uDD90\uFE0F'], ['maladie','\uD83E\uDD12'], ['symptome','\uD83E\uDD12'],
-  ['meteo','\uD83C\uDF26\uFE0F'], ['nature','\uD83C\uDF43'], ['couleur','\uD83C\uDFA8'],
+  ['meteo','\uD83C\uDF26\uFE0F'], ['pierre','\uD83D\uDC8E'], ['metal','\uD83D\uDC8E'], ['nature','\uD83C\uDF43'], ['couleur','\uD83C\uDFA8'],
   ['salle de classe','\uD83C\uDF92'], ['peur','\uD83D\uDC7B'], ['perd','\uD83D\uDD0D'],
   ['cadeau','\uD83C\uDF81'], ['coute cher','\uD83D\uDCB0'], ['metier','\uD83E\uDDF0'],
   ['objet','\uD83D\uDCE6'], ['truc','\uD83D\uDCE6']
