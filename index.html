@@ -76,6 +76,32 @@ body{margin:0;background-color:var(--paper);background-image:radial-gradient(var
   background:var(--paper);overflow:hidden;}
 #app-shell::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;z-index:2;
   background:linear-gradient(90deg,var(--accent),var(--accent-2));}
+/* Fond « page de cahier », une image par écran (`data-bg`, posé par renderTop()).
+   L'image est portée par une couche `::after` et non par `background-image` du shell,
+   pour deux raisons : on peut l'atténuer (`opacity`) sans toucher au papier en dessous,
+   et on peut la faire disparaître en haut et en bas avec un masque. C'est nécessaire :
+   les griffonnages sont dans les coins, or le bandeau et le bloc de stats aussi — sans
+   masque, la fusée passe en travers du titre et l'éclair en travers des scores.
+   `z-index:0` la place sous tout le reste (bandeau, contenu, barre du bas sont déjà en 1). */
+#app-shell::after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
+  background-repeat:no-repeat;background-position:top center;background-size:cover;
+  opacity:.62;
+  -webkit-mask-image:linear-gradient(to bottom, rgba(0,0,0,.10) 0, #000 128px, #000 calc(100% - 132px), rgba(0,0,0,.22) 100%);
+  mask-image:linear-gradient(to bottom, rgba(0,0,0,.10) 0, #000 128px, #000 calc(100% - 132px), rgba(0,0,0,.22) 100%);}
+#app-shell[data-bg="accueil"]::after{background-image:url(/bg/accueil.webp);}
+#app-shell[data-bg="salon"]::after{background-image:url(/bg/salon.webp);}
+#app-shell[data-bg="manche"]::after{background-image:url(/bg/manche.webp);}
+/* En sombre le trait ressort davantage sur la page noire : on atténue un peu plus. */
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) #app-shell::after{opacity:.5;}
+  :root:not([data-theme="light"]) #app-shell[data-bg="accueil"]::after{background-image:url(/bg/accueil-dark.webp);}
+  :root:not([data-theme="light"]) #app-shell[data-bg="salon"]::after{background-image:url(/bg/salon-dark.webp);}
+  :root:not([data-theme="light"]) #app-shell[data-bg="manche"]::after{background-image:none;}
+}
+:root[data-theme="dark"] #app-shell::after{opacity:.5;}
+:root[data-theme="dark"] #app-shell[data-bg="accueil"]::after{background-image:url(/bg/accueil-dark.webp);}
+:root[data-theme="dark"] #app-shell[data-bg="salon"]::after{background-image:url(/bg/salon-dark.webp);}
+:root[data-theme="dark"] #app-shell[data-bg="manche"]::after{background-image:none;}
 @media (min-width:560px){
   #app-shell{margin:22px auto;height:calc(100dvh - 44px);border-radius:20px;box-shadow:var(--shadow-md);border:1.5px solid var(--line);}
   #app-shell::before{border-radius:20px 20px 0 0;}
@@ -1740,6 +1766,15 @@ function updateCountdownUI(){
 }
 
 /* ---------- top-level render dispatcher ---------- */
+/* Le fond suit l'écran, et en partie la phase : le salon, la manche et le podium
+   n'ont pas la même page de cahier. Les écrans de saisie (create/join) restent sur
+   celle de l'accueil, ils en sont le prolongement. */
+function bgForScreen(screen, phase){
+  if (screen !== 'room') return 'accueil';
+  if (phase === 'lobby') return 'salon';
+  if (phase === 'reveal' && showingLeaderboard(state)) return 'podium';
+  return 'manche';
+}
 function renderTop(){
   const backVisible = (uiScreen === 'create' || uiScreen === 'join');
   document.getElementById('back-btn').hidden = !backVisible;
@@ -1759,6 +1794,7 @@ function renderTop(){
      bougent à chaque vote, ce qui annonce le résultat avant la validation et le podium. */
   const stripHidden = !inRoom || roomPhase === 'lobby' || roomPhase === 'reveal';
   document.getElementById('scoreboard-strip').innerHTML = stripHidden ? '' : renderScoreboard(state);
+  document.getElementById('app-shell').dataset.bg = bgForScreen(uiScreen, roomPhase);
 
   const activeEl = document.activeElement;
   const preserveId = (activeEl && activeEl.id) || null;

@@ -107,6 +107,18 @@ Le **QR a quitté `#content`** pour la feuille du bas (`openInviteSheet`), à 20
 
 Les **règles du match** (nombre de manches, durée) sont affichées en deux pastilles cliquables qui ouvrent les réglages : c'était invisible avant, il fallait ouvrir la feuille pour savoir en combien de manches on jouait. Les **catégories** sont une liste alignée (`.cat-list`) et non plus un nuage de pastilles centrées, avec le re-tirage à portée de pouce dans l'en-tête — réservé à l'hôte, comme le lancement.
 
+## Fonds « page de cahier »
+
+Les fichiers sont dans `bg/` : une page de cahier réglée avec des griffonnages au bic, une image par écran et par thème. Elles sont générées (ChatGPT) à partir d'un bloc de style commun — page vue à plat, lignes droites, marge rouge, trait de bic bleu, aucun texte, coins occupés et centre vide — et des couleurs imposées en hexa (`#F6F1E4` / `#B9C7D6` / `#D9857C` / `#24408F` en clair, `#17130E` / `#2E2820` / `#5A2A20` / `#6E86C4` en sombre). Si tu en régénères une, reprends ces valeurs, sinon elle jurera avec les autres.
+
+Converties en **WebP q82** : 25 à 45 Ko pièce contre ~1 Mo en PNG, pour un fond dont la fidélité au pixel n'a aucune importance. Ne les recommite pas en PNG.
+
+L'image est portée par `#app-shell::after` et **pas** par `background-image` du shell. Deux raisons, les deux nécessaires :
+- `opacity` (.62 en clair, .5 en sombre) l'atténue sans toucher à l'aplat de papier en dessous ;
+- un `mask-image` la fait presque disparaître sur les 128 premiers pixels et les 132 derniers. Sans ça, la fusée passe en travers du titre « Petit Bac » et l'éclair en travers du bloc de stats — les griffonnages sont dans les coins, or le bandeau et la barre du bas aussi.
+
+`bgForScreen(screen, phase)` choisit le fond et `renderTop()` le pose en `data-bg` sur le shell. Un écran sans image déclarée retombe sur le papier uni du shell, jamais sur du blanc.
+
 ## Points d'attention connus
 
 - **Onglets en arrière-plan** : les navigateurs mobiles peuvent throttle `setInterval` quand l'onglet n'est pas au premier plan, ce qui peut retarder ou empêcher l'auto-soumission des réponses. Double filet de sécurité déjà en place : un listener `visibilitychange` relance `tick()` au retour au premier plan, ET `submitMyAnswers()` est aussi appelé directement depuis le callback du listener Firebase temps réel (`roomSnapshotHandler`), pas uniquement depuis le timer local. Si tu touches à cette logique, garde les deux déclencheurs.
@@ -156,7 +168,10 @@ Pas de suite de tests dans le repo, mais deux techniques qui marchent bien et qu
 
 21. Revue de la banque : catégories trop ouvertes retirées (« Ce qui coûte cher », « Objet », « Nourriture »…), remplacées par des catégories bornées et vérifiables
 
+22. Fonds « page de cahier » griffonnée au bic, une image par écran et par thème (`bg/`, WebP, couche `::after` atténuée et masquée)
+
 ## Pistes non traitées
 
 - Resserrer les règles Firebase avant l'expiration du mode test
 - Pas de reconnexion réseau explicite au-delà du comportement natif du SDK Firebase
+- Fonds manquants : `manche-dark`, `podium` et `podium-dark`. En attendant, ces écrans affichent le papier uni — le CSS et `bgForScreen()` sont déjà prêts, il n'y a que les fichiers à déposer et trois lignes de CSS à décommenter
