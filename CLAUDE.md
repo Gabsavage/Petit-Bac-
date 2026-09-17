@@ -115,7 +115,20 @@ Converties en **WebP q82** : 25 à 45 Ko pièce contre ~1 Mo en PNG, pour un fon
 
 L'image est portée par `#app-shell::after` et **pas** par `background-image` du shell. Deux raisons, les deux nécessaires :
 - `opacity` (.62 en clair, .5 en sombre) l'atténue sans toucher à l'aplat de papier en dessous ;
-- un `mask-image` la fait presque disparaître sur les 128 premiers pixels et les 132 derniers. Sans ça, la fusée passe en travers du titre « Petit Bac » et l'éclair en travers du bloc de stats — les griffonnages sont dans les coins, or le bandeau et la barre du bas aussi.
+- un `mask-image` la fait disparaître sous le **bandeau seul** (34px pleins, fondu jusqu'à 78px).
+
+Le masque a d'abord fondu 128px en haut et 132px en bas, et c'était une erreur : c'est exactement là que sont les griffonnages, donc on les effaçait tous pour protéger deux lignes de texte. Le texte posé à même le fond est désormais protégé par un **halo de papier** (`text-shadow` en `var(--paper)` sur `.app-bar-title`, `.tagline`, `.section-heading`, `.lobby-name`, `.stat-value`…). On protège le texte au lieu de cacher l'image.
+
+**Les compositions ne collent pas encore à la mise en page.** Le brief de génération disait « griffonnages dans les coins, centre vide » ; or dans l'app c'est l'inverse, le contenu est au centre et les coins portent le bandeau et les boutons. Mesure des bandes réellement libres, à 390×844 :
+
+| écran | bandes libres (px depuis le haut) |
+|---|---|
+| accueil | 60–180, 360–500, 700–844 |
+| salon | aucune |
+| manche | 660–760 |
+| podium | 60–180, 300–760 |
+
+C'est à ces zones-là qu'il faut demander les dessins si on régénère les images. Le salon n'ayant aucune bande libre, son fond est descendu à `opacity:.3` et ne sert plus que de texture. Pour mesurer à nouveau après un changement de mise en page : parcourir l'écran par bandes de 20px et sommer l'union des rectangles des éléments d'UI, une bande sous 12 % d'occupation est libre.
 
 `bgForScreen(screen, phase)` choisit le fond et `renderTop()` le pose en `data-bg` sur le shell. Un écran sans image déclarée retombe sur le papier uni du shell, jamais sur du blanc.
 

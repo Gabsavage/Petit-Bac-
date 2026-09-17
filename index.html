@@ -86,8 +86,20 @@ body{margin:0;background-color:var(--paper);background-image:radial-gradient(var
 #app-shell::after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
   background-repeat:no-repeat;background-position:top center;background-size:cover;
   opacity:.62;
-  -webkit-mask-image:linear-gradient(to bottom, rgba(0,0,0,.10) 0, #000 128px, #000 calc(100% - 132px), rgba(0,0,0,.22) 100%);
-  mask-image:linear-gradient(to bottom, rgba(0,0,0,.10) 0, #000 128px, #000 calc(100% - 132px), rgba(0,0,0,.22) 100%);}
+  /* Le masque ne protège QUE le bandeau : il fondait autrefois 128px en haut et 132px
+     en bas, or c'est précisément là que sont les griffonnages — on les payait sans
+     rien gagner. Le texte posé à même le fond est protégé par un halo (voir plus bas),
+     ce qui laisse les dessins visibles au lieu de les effacer. */
+  -webkit-mask-image:linear-gradient(to bottom, rgba(0,0,0,.12) 0, rgba(0,0,0,.12) 34px, #000 78px, #000 100%);
+  mask-image:linear-gradient(to bottom, rgba(0,0,0,.12) 0, rgba(0,0,0,.12) 34px, #000 78px, #000 100%);}
+/* Le salon est le seul écran sans aucune bande libre : quoi qu'on dessine, ça tombe
+   sous un avatar ou sous la liste de catégories. On le garde en simple texture. */
+#app-shell[data-bg="salon"]::after{opacity:.3;}
+/* Halo de papier sous le texte posé à même le fond (le reste est sur des cartes,
+   qui ont déjà un aplat). Sans ça un trait de bic passe au travers d'un mot. */
+.app-bar-title,.tagline,.section-heading,.lobby-name,.stat-value,.stat-label,
+.review-progress,.legend,.loader-label,.drum-caption{
+  text-shadow:0 0 7px var(--paper),0 0 13px var(--paper);}
 #app-shell[data-bg="accueil"]::after{background-image:url(/bg/accueil.webp);}
 #app-shell[data-bg="salon"]::after{background-image:url(/bg/salon.webp);}
 #app-shell[data-bg="manche"]::after{background-image:url(/bg/manche.webp);}
