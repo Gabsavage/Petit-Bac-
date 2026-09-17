@@ -91,17 +91,20 @@ body{margin:0;background-color:var(--paper);background-image:radial-gradient(var
 #app-shell[data-bg="accueil"]::after{background-image:url(/bg/accueil.webp);}
 #app-shell[data-bg="salon"]::after{background-image:url(/bg/salon.webp);}
 #app-shell[data-bg="manche"]::after{background-image:url(/bg/manche.webp);}
+#app-shell[data-bg="podium"]::after{background-image:url(/bg/podium.webp);}
 /* En sombre le trait ressort davantage sur la page noire : on atténue un peu plus. */
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]) #app-shell::after{opacity:.5;}
   :root:not([data-theme="light"]) #app-shell[data-bg="accueil"]::after{background-image:url(/bg/accueil-dark.webp);}
   :root:not([data-theme="light"]) #app-shell[data-bg="salon"]::after{background-image:url(/bg/salon-dark.webp);}
-  :root:not([data-theme="light"]) #app-shell[data-bg="manche"]::after{background-image:none;}
+  :root:not([data-theme="light"]) #app-shell[data-bg="manche"]::after{background-image:url(/bg/manche-dark.webp);}
+  :root:not([data-theme="light"]) #app-shell[data-bg="podium"]::after{background-image:url(/bg/podium-dark.webp);}
 }
 :root[data-theme="dark"] #app-shell::after{opacity:.5;}
 :root[data-theme="dark"] #app-shell[data-bg="accueil"]::after{background-image:url(/bg/accueil-dark.webp);}
 :root[data-theme="dark"] #app-shell[data-bg="salon"]::after{background-image:url(/bg/salon-dark.webp);}
-:root[data-theme="dark"] #app-shell[data-bg="manche"]::after{background-image:none;}
+:root[data-theme="dark"] #app-shell[data-bg="manche"]::after{background-image:url(/bg/manche-dark.webp);}
+:root[data-theme="dark"] #app-shell[data-bg="podium"]::after{background-image:url(/bg/podium-dark.webp);}
 @media (min-width:560px){
   #app-shell{margin:22px auto;height:calc(100dvh - 44px);border-radius:20px;box-shadow:var(--shadow-md);border:1.5px solid var(--line);}
   #app-shell::before{border-radius:20px 20px 0 0;}

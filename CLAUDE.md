@@ -109,7 +109,7 @@ Les **règles du match** (nombre de manches, durée) sont affichées en deux pas
 
 ## Fonds « page de cahier »
 
-Les fichiers sont dans `bg/` : une page de cahier réglée avec des griffonnages au bic, une image par écran et par thème. Elles sont générées (ChatGPT) à partir d'un bloc de style commun — page vue à plat, lignes droites, marge rouge, trait de bic bleu, aucun texte, coins occupés et centre vide — et des couleurs imposées en hexa (`#F6F1E4` / `#B9C7D6` / `#D9857C` / `#24408F` en clair, `#17130E` / `#2E2820` / `#5A2A20` / `#6E86C4` en sombre). Si tu en régénères une, reprends ces valeurs, sinon elle jurera avec les autres.
+Les fichiers sont dans `bg/` : une page de cahier réglée avec des griffonnages au bic, une image par écran et par thème (accueil, salon, manche, podium × clair/sombre, soit huit fichiers pour 273 Ko au total). Elles sont générées (ChatGPT) à partir d'un bloc de style commun — page vue à plat, lignes droites, marge rouge, trait de bic bleu, aucun texte, coins occupés et centre vide — et des couleurs imposées en hexa (`#F6F1E4` / `#B9C7D6` / `#D9857C` / `#24408F` en clair, `#17130E` / `#2E2820` / `#5A2A20` / `#6E86C4` en sombre). Si tu en régénères une, reprends ces valeurs, sinon elle jurera avec les autres.
 
 Converties en **WebP q82** : 25 à 45 Ko pièce contre ~1 Mo en PNG, pour un fond dont la fidélité au pixel n'a aucune importance. Ne les recommite pas en PNG.
 
@@ -174,4 +174,3 @@ Pas de suite de tests dans le repo, mais deux techniques qui marchent bien et qu
 
 - Resserrer les règles Firebase avant l'expiration du mode test
 - Pas de reconnexion réseau explicite au-delà du comportement natif du SDK Firebase
-- Fonds manquants : `manche-dark`, `podium` et `podium-dark`. En attendant, ces écrans affichent le papier uni — le CSS et `bgForScreen()` sont déjà prêts, il n'y a que les fichiers à déposer et trois lignes de CSS à décommenter
