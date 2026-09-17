@@ -46,7 +46,7 @@ games/{pin}/                    pin = code à 4 chiffres, sert aussi de clé Fir
   roundDurationMs, maxRounds    maxRounds: 0 = illimité, sinon 3/5/10
   createdAt, lastActivity       lastActivity sert au nettoyage auto (INACTIVITY_MS = 3 min)
   recentLetters: [string, ...]  13 dernières lettres tirées (RECENT_LETTERS_MAX), survit à "Rejouer"
-  players/{key}: { name, emoji, color }
+  players/{key}: { name, emoji, color, seen }   seen = horodatage du dernier battement de coeur (10s)
   currentRound: {
     number, letter, revealAt, endTime,
     finishedAt, finishedBy,     posé par le 1er joueur qui clique "J'ai fini" -> 5s de grâce pour les autres
@@ -66,6 +66,15 @@ games/{pin}/                    pin = code à 4 chiffres, sert aussi de clé Fir
 Le tirage se fait **à la création seulement**, jamais au début d'une manche : les catégories corrigées à la main dans les réglages seraient écrasées à la manche 2. Pour en changer, l'édition du textarea (`handleSaveCategories`) et le bouton « Tirer d'autres catégories » (`handleShuffleCategories`) restent dispo dans le salon. `handleShuffleCategories` écrit dans Firebase **et** dans le textarea ouvert : la feuille de réglages n'est pas re-rendue par un snapshot, sans ça elle continuerait d'afficher l'ancienne liste.
 
 `categoryEmoji(name)` cherche un mot-clé dans le nom **normalisé** (`CATEGORY_EMOJIS`, du plus spécifique au plus générique) plutôt qu'une table nom -> emoji : les catégories peuvent être réécrites librement, une catégorie inconnue retombe sur ✏️. L'ordre des entrées compte (« dans une ville » avant « ville », « cuisine » avant « objet ») — si tu ajoutes un mot-clé, vérifie qu'il n'est pas un sous-mot d'une entrée plus spécifique placée après lui.
+
+**Reprise du rôle d'hôte** : il n'y a pas de système de présence Firebase (`onDisconnect`) — chaque client écrit `players/{key}/seen` toutes les 10s depuis `tick()` (`sendHeartbeat`), et un hôte qu'on n'a plus vu depuis `HOST_GONE_MS` (90s) est repris par un autre joueur (`maybeAdoptHost`). Quatre choses à ne pas casser :
+
+- Le battement de cœur n'écrit **que** `players/{key}/seen`, jamais `lastActivity` : sinon un onglet oublié dans un coin empêcherait à jamais le nettoyage automatique des parties inactives.
+- On ne promeut que si l'hôte a **déjà un `seen`**. Un onglet resté sur une version antérieure du code n'en écrit jamais : sans ce test, il se ferait destituer alors qu'il joue encore. Pas de `seen` = on ne touche à rien.
+- Le successeur est la **plus petite clé** parmi les joueurs vus récemment (`pickNewHost`) : c'est arbitraire mais déterministe, donc tous les clients désignent le même et on ne se repasse pas le rôle en boucle. L'écriture passe par une **transaction** sur `hostKey` (`promoteHost`), qui abandonne si quelqu'un a déjà repris la main.
+- 90s paraît long, c'est volontaire : `seen` est écrit depuis `tick()`, or les mobiles throttlent les timers d'un onglet en arrière-plan. À 45s, un hôte qui répond juste à un message se faisait destituer. Le départ volontaire, lui, passe la main immédiatement (`handleLeaveRoom`) — les 90s ne concernent que les départs brutaux (onglet fermé, réseau coupé).
+
+`seen` est aussi posé à la création et à l'arrivée dans une partie, sinon un joueur qui vient d'entrer ne serait pas éligible comme successeur pendant 10s, et une reconnexion (qui réécrit l'objet joueur en entier) l'effacerait.
 
 **Scoring** (`scoreRound`) : une réponse est **valide par défaut**, l'écran de validation ne permet que de refuser — un seul refus suffit à annuler la réponse. La comparaison `no > yes` est conservée pour rescorer correctement les manches archivées avec l'ancien écran à deux boutons. Une réponse d'une seule lettre vaut 0 sans vote. Les doublons sont détectés à la faute de frappe près (`sameWord`, distance de Levenshtein : 2 fautes à partir de 7 lettres, 1 à partir de 4, aucune en dessous) pour que "Hongrie"/"Hongrir" donnent 1 pt chacun.
 
@@ -89,7 +98,7 @@ Le tirage se fait **à la création seulement**, jamais au début d'une manche :
 - **Le profil court-circuite les écrans de saisie** : avec un `pb_profile`, "Créer" et "Rejoindre" entrent directement en partie (`goCreate()` / `goJoin()` via `useProfileDrafts()`). Les écrans `create`/`join` ne servent plus qu'au premier lancement — et de repli quand le prénom est déjà pris dans la partie visée, cas où `handleConfirmJoin()` les ouvre pour laisser corriger.
 - **Champs de saisie à 16px minimum** : en dessous, Safari iOS zoome automatiquement l'écran au focus. C'est la raison du `font-size:16px` en dur sur le textarea des catégories.
 - **`setBusy()` et les boutons statiques du shell** : `#menu-btn` et `#back-btn` ne sont jamais recréés (`renderTop()` ne touche que leur `hidden` et leur `innerHTML`), contrairement aux boutons de `#content` et `#bottom-bar`. `setBusy` ne faisait que désactiver sans jamais réactiver : les seconds s'en sortaient par le re-rendu, les premiers restaient désactivés à vie dès la première action réseau — le bouton réglages ne répondait plus de toute la partie. Il mémorise désormais ce qu'il a désactivé pour le réactiver ensuite ; ne le remplace pas par un `b.disabled = isBusy` aveugle, ça réactiverait les boutons volontairement désactivés par le rendu ("Envoyé, en attente…").
-- Pas de gestion explicite du cas où l'hôte quitte définitivement une partie en cours. Depuis que la validation est aussi réservée à l'hôte, ça bloque à deux endroits : plus personne ne lance la manche suivante depuis le lobby, et plus personne ne fait avancer l'écran de validation. Le repli reste de quitter la partie et d'en recréer une.
+- **Le départ de l'hôte est rattrapé** par la reprise de rôle décrite plus haut (immédiate s'il clique « Quitter », sous 90s s'il ferme son onglet). Il reste un cas non couvert : si **tous** les clients sont en arrière-plan ou hors ligne, personne n'est éligible et la partie attend — elle repart dès que quelqu'un revient au premier plan.
 
 ## Comment tester
 
@@ -120,9 +129,10 @@ Pas de suite de tests dans le repo, mais deux techniques qui marchent bien et qu
 
 16. Icônes PWA/favicon refaites en « PB + crayon » (crayon retiré au 16px, variante maskable rentrée pour Android)
 
+17. Reprise automatique du rôle d'hôte quand il s'en va (battement de cœur `seen` + transaction sur `hostKey`), et validation réservée à l'hôte
+
 ## Pistes non traitées
 
 - Resserrer les règles Firebase avant l'expiration du mode test
 - Pas de reconnexion réseau explicite au-delà du comportement natif du SDK Firebase
-- Pas de gestion du départ définitif de l'hôte
 - Un seul refus suffit à annuler une réponse : suffisant entre amis, mais rien n'empêche un joueur d'invalider tout le monde

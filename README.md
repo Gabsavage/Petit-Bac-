@@ -62,6 +62,7 @@ La base Firebase utilisée est celle de prod (projet `petit-bac-c24bf`) — test
 ## Autres comportements
 
 - Nettoyage automatique : une partie sans activité depuis 3 min se ferme toute seule
+- Si l'hôte s'en va, un autre joueur reprend le rôle automatiquement : immédiatement s'il clique « Quitter la partie », sous 90s s'il ferme simplement son onglet
 - Les réponses sont sauvegardées en cours de frappe : recharger l'onglet en pleine manche ne les perd pas
 - Auto-soumission des réponses à la fin du temps, même si l'onglet est passé en arrière-plan
 
@@ -72,6 +73,6 @@ La base Firebase utilisée est celle de prod (projet `petit-bac-c24bf`) — test
 - Pas de suite de tests dans le repo (voir `CLAUDE.md` pour la façon de tester les fonctions pures et l'app en navigateur headless)
 - Règles Firebase en mode test (voir plus haut)
 - Pas de gestion de reconnexion réseau au-delà de ce que fait nativement le SDK Firebase
-- Si l'hôte quitte définitivement une partie en cours, plus personne ne peut lancer la manche suivante
+- Si tous les joueurs mettent leur onglet en arrière-plan en même temps, la partie attend : personne n'est considéré présent pour reprendre le rôle d'hôte. Elle repart dès que quelqu'un revient
 
 Pour le contexte de développement détaillé (conventions de code, modèle de données, pièges connus), voir [`CLAUDE.md`](./CLAUDE.md).
