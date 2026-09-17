@@ -6,6 +6,8 @@ Contexte projet pour Claude Code. Lis ce fichier avant de faire des changements 
 
 App web "Petit Bac" multijoueur en temps réel. **Un seul fichier** `index.html` autonome (HTML + CSS + JS inline), pas de build, pas de framework, pas de `package.json`. Déployé sur Vercel, connecté à ce repo GitHub — un push sur `main` redéploie automatiquement en ~20-30s. Les autres fichiers à la racine (`manifest.json`, `favicon*.png/ico`, `apple-touch-icon.png`, `icon-*.png`) sont les assets PWA, référencés en chemins absolus (`/favicon.ico`, etc.) depuis `index.html`.
 
+**Icônes** : « PB » en Fraunces crème, ombre portée dure à l'encre, crayon moutarde en bas à droite qui mord sur le B, le tout sur fond brique. Elles ne sont pas dessinées à la main : la même compo est composée en HTML/SVG (la vraie Fraunces-Bold embarquée en base64, le crayon de `brandMark()` avec le corps en `--accent-2`), Chromium capture, Pillow réduit et assemble le `.ico`. Deux points à ne pas perdre si tu les régénères : le **16px n'a pas de crayon** (à cette taille il devient une tache et mange la lisibilité du PB), et `icon-512-maskable.png` est une version **rentrée à 74 %** parce qu'Android recadre les icônes `purpose: maskable` dans un cercle de 80 % — avec l'icône pleine page, la gomme du crayon et la sérif gauche du P sautent.
+
 ## Règles de code à respecter
 
 - **Un seul fichier** `index.html` — tout le CSS et le JS restent inline dedans. N'éclate pas en fichiers séparés sauf si explicitement demandé (ça casserait le côté "un seul fichier à déployer").
@@ -115,10 +117,11 @@ Pas de suite de tests dans le repo, mais deux techniques qui marchent bien et qu
 
 15. Banque de catégories tirées au sort à la création d'une partie (étalées sur 7 familles), bouton de re-tirage dans le salon, et picto devant chaque catégorie dans la salle d'attente
 
+16. Icônes PWA/favicon refaites en « PB + crayon » (crayon retiré au 16px, variante maskable rentrée pour Android)
+
 ## Pistes non traitées
 
 - Resserrer les règles Firebase avant l'expiration du mode test
 - Pas de reconnexion réseau explicite au-delà du comportement natif du SDK Firebase
 - Pas de gestion du départ définitif de l'hôte
-- Icônes PWA/favicon : une piste "PB + crayon" a été maquettée mais pas retenue à ce jour, les icônes en place restent le "B" sur fond brique
 - Un seul refus suffit à annuler une réponse : suffisant entre amis, mais rien n'empêche un joueur d'invalider tout le monde
