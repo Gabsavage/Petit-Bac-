@@ -43,7 +43,7 @@ La base Firebase utilisée est celle de prod (projet `petit-bac-c24bf`) — test
 ## Déroulé d'une partie
 
 1. **Accueil** — écran de lancement animé (les tuiles PETIT BAC tombent une à une), puis deux actions : créer une partie, ou rejoindre depuis la liste des parties en cours. Un bloc de statistiques locales (manches jouées, record, dernière lettre) apparaît une fois qu'on a joué. L'avatar en haut à droite ouvre le profil.
-2. **Profil** — avatar (emoji + couleur) et prénom configurés une fois pour toutes : ensuite, créer ou rejoindre une partie se fait en un geste, sans repasser par un formulaire. La même feuille liste les joueurs croisés en partie, qui s'ajoutent automatiquement et restent supprimables. Profil et amis sont stockés sur l'appareil uniquement, rien n'est publié.
+2. **Profil** — avatar (emoji + couleur) et prénom configurés une fois pour toutes, depuis l'avatar du bandeau : ensuite, créer ou rejoindre une partie se fait en un geste, sans repasser par un formulaire. Le profil est stocké sur l'appareil uniquement, rien n'est publié.
 3. **Création** — la partie obtient un code à 4 chiffres, qui sert de clé Firebase mais n'est jamais affiché : on rejoint par QR code, par lien (`?pin=XXXX`) ou depuis la liste.
 4. **Salle d'attente** — QR code à scanner, joueurs présents, catégories. Seul l'hôte lance la manche. Les réglages (catégories, durée 60/90/120s, nombre de manches 3/5/10/∞) sont accessibles juste au-dessus du bouton de lancement.
 5. **Manche** — décompte de 3s, puis la lettre s'affiche à gauche du minuteur. Le premier qui clique "J'ai fini" déclenche 5s de grâce pour les autres, après quoi la manche se termine pour tout le monde.
@@ -66,8 +66,8 @@ La base Firebase utilisée est celle de prod (projet `petit-bac-c24bf`) — test
 
 ## Limitations connues
 
-- Pas de vraie authentification : l'identité d'un joueur est stockée en `localStorage` par appareil/navigateur — changer de navigateur = nouveau joueur, et le profil comme la liste d'amis ne suivent pas
-- Les amis sont une mémoire locale des joueurs croisés : impossible de voir s'ils jouent ni de les inviter (il faudrait publier un annuaire de joueurs et un identifiant stable)
+- Pas de vraie authentification : l'identité d'un joueur est stockée en `localStorage` par appareil/navigateur — changer de navigateur = nouveau joueur, et le profil ne suit pas
+- Pas de liste d'amis ni de présence : voir qui joue et le rejoindre demanderait un annuaire de joueurs publié et un identifiant stable
 - Pas de suite de tests dans le repo (voir `CLAUDE.md` pour la façon de tester les fonctions pures et l'app en navigateur headless)
 - Règles Firebase en mode test (voir plus haut)
 - Pas de gestion de reconnexion réseau au-delà de ce que fait nativement le SDK Firebase

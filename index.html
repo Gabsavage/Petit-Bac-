@@ -364,10 +364,6 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
 /* Avatar en guise de bouton : il occupe toute la pastille, sans bordure en double. */
 .icon-btn.has-avatar{border-color:transparent;background:none;}
 .icon-btn.has-avatar .avatar.small{width:30px;height:30px;font-size:.92rem;}
-.friend-list{display:flex;flex-direction:column;gap:6px;margin-top:4px;}
-.friend-row{display:flex;align-items:center;gap:10px;background:var(--paper-raised);
-  border:1.5px solid var(--line-strong);border-radius:11px;padding:7px 8px 7px 12px;}
-.friend-name{flex:1;font-size:.9rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .sheet-actions{display:flex;flex-direction:column;gap:10px;margin-top:20px;}
 .sheet-links{display:flex;flex-direction:column;gap:4px;text-align:center;margin-top:22px;}
 .duration-choices{display:flex;gap:8px;margin-top:8px;}
@@ -432,7 +428,6 @@ const db = firebase.database();
 
 const LETTER_POOL = ['A','B','C','D','E','F','G','H','I','J','L','M','N','O','P','R','S','T','V'];
 const RECENT_LETTERS_MAX = 13;   /* sur 19 lettres, il en reste toujours 6 tirables */
-const FRIENDS_MAX = 24;
 const DEFAULT_CATEGORIES = ["Prénom","Pays / Villes","Métiers","Célébrité","Marque","Animal","Partie du corps","Nourriture"];
 const AVATAR_EMOJIS = ['😀','😎','🤠','🥳','🤖','👻','🐶','🐱','🦊','🐻','🐼','🐸','🦁','🐵','🦄','🐙','🦖','🐧','🐰','🦉','🐢','🦋','🐝','🍕'];
 const AVATAR_COLORS = ['#FF6B5B','#FFC94D','#4CE0A0','#5B8DEF','#C77DFF','#FF7AA8','#4DD4E8','#F2A65A'];
@@ -674,8 +669,7 @@ function icon(name){
     chevronRight: '<path d="M9 6l6 6-6 6"/>',
     bolt: '<path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/>',
     exit: '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
-    user: '<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>',
-    trash: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/>'
+    user: '<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>'
   };
   return '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(paths[name]||'')+'</svg>';
 }
@@ -721,7 +715,7 @@ function refreshAvatarPicker(){
   if (el) el.innerHTML = renderAvatarPickerInner();
 }
 
-/* ---------- profil et amis (par appareil, jamais synchronisés) ---------- */
+/* ---------- profil (par appareil, jamais synchronisé) ---------- */
 function readProfile(){
   try {
     const p = JSON.parse(localStorage.getItem('pb_profile') || 'null');
@@ -750,34 +744,6 @@ function writeProfile(p){
     localStorage.setItem('pb_avatar', JSON.stringify({ emoji: p.emoji, color: p.color }));
   } catch(e){}
 }
-function readFriends(){
-  try {
-    const list = JSON.parse(localStorage.getItem('pb_friends') || 'null');
-    if (list && list.length) return list.filter(function(f){ return f && f.key && f.name; });
-  } catch(e){}
-  return [];
-}
-function writeFriends(list){
-  try { localStorage.setItem('pb_friends', JSON.stringify(list)); } catch(e){}
-}
-/* Appelée une fois par manche, en même temps que les stats : tous ceux qui sont dans
-   la partie entrent dans la liste. Pas de synchro, pas de demande d'ajout — c'est une
-   mémoire locale des gens avec qui on a joué. */
-function recordFriends(s){
-  if (!myKey) return;
-  const byKey = {};
-  readFriends().forEach(function(f){ byKey[f.key] = f; });
-  const now = Date.now();
-  Object.keys(s.players).forEach(function(k){
-    if (k === myKey) return;
-    const p = s.players[k];
-    byKey[k] = { key: k, name: p.name, emoji: p.emoji, color: p.color, lastSeen: now };
-  });
-  const next = Object.keys(byKey).map(function(k){ return byKey[k]; });
-  next.sort(function(a, b){ return (b.lastSeen || 0) - (a.lastSeen || 0); });
-  writeFriends(next.slice(0, FRIENDS_MAX));
-}
-
 /* ---------- stats locales (par appareil, jamais synchronisées) ---------- */
 function readStats(){
   try {
@@ -800,7 +766,6 @@ function countRoundPlayed(s){
   st.rounds += 1;
   st.letter = s.currentRound.letter || st.letter;
   writeStats(st);
-  recordFriends(s);
 }
 function updateBestScore(s){
   if (!s.currentRound || !myKey || !s.players[myKey]) return;
@@ -831,23 +796,12 @@ function renderHomeStats(){
   return html + '</div>';
 }
 function profileSheetHtml(){
-  const friends = readFriends();
   let html = '<h3 class="sheet-title">Ton profil</h3>';
   html += '<p class="muted" style="margin:4px 0 14px;font-size:.85rem;">Configuré une fois, réutilisé à chaque partie.</p>';
   html += '<div id="avatar-picker">' + renderAvatarPickerInner() + '</div>';
   html += '<input id="profile-name" class="field-line" type="text" placeholder="Ton prénom" maxlength="20" autocomplete="off" value="'+esc(draftName)+'">';
   html += '<p id="profile-error" class="error" style="text-align:center;"></p>';
   html += '<button type="button" class="cta" data-action="save-profile" style="margin-top:6px;">Enregistrer</button>';
-  html += '<p class="section-heading">Amis</p>';
-  if (!friends.length){
-    html += '<p class="muted" style="font-size:.85rem;margin:0;">Les joueurs que tu croises en partie s’ajoutent ici automatiquement.</p>';
-  } else {
-    html += '<div class="friend-list">' + friends.map(function(f){
-      return '<div class="friend-row">' + playerAvatarHtml(f, 'small') +
-        '<span class="friend-name">'+esc(f.name)+'</span>' +
-        '<button type="button" class="icon-btn small" data-action="remove-friend" data-key="'+esc(f.key)+'" aria-label="Retirer '+esc(f.name)+'">'+icon('trash')+'</button></div>';
-    }).join('') + '</div>';
-  }
   return html;
 }
 function joinSheetHtml(){
@@ -1440,11 +1394,6 @@ function handleSaveProfile(){
   renderTop();
   showToast('Profil enregistré.');
 }
-function handleRemoveFriend(key){
-  writeFriends(readFriends().filter(function(f){ return f.key !== key; }));
-  const el = document.getElementById('sheet-content');
-  if (el) el.innerHTML = profileSheetHtml();
-}
 function openJoinSheet(){
   const el = document.getElementById('sheet-content');
   if (el) el.innerHTML = joinSheetHtml();
@@ -1809,7 +1758,6 @@ document.addEventListener('click', function(e){
   }
   else if (action === 'open-profile') openProfileSheet();
   else if (action === 'save-profile') handleSaveProfile();
-  else if (action === 'remove-friend') handleRemoveFriend(btn.dataset.key);
   else if (action === 'pick-emoji'){ draftEmoji = btn.dataset.emoji; refreshAvatarPicker(); }
   else if (action === 'pick-color'){ draftColor = btn.dataset.color; refreshAvatarPicker(); }
   else if (action === 'start-round') handleStartRound();
