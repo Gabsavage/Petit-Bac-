@@ -29,7 +29,8 @@ node --check /tmp/extracted.js
 
 - **Firebase Realtime Database** (pas Firestore) pour l'état partagé. SDK **compat** chargé via `<script src=.../firebase-app-compat.js>` (API namespaced `firebase.database()`, PAS l'API modulaire v9+ à imports).
 - **QR code** : `qrcodejs` (davidshimjs) via cdnjs, API `new QRCode(element, options)`.
-- Identité visuelle "carnet de scores / plateau de jeu" : fond papier crème + grille de points en `radial-gradient`, encre foncée pour le texte, un seul accent (brique `--accent`) réservé aux actions primaires et un second (moutarde `--accent-2`) pour les highlights ludiques (badge hôte, 1ère place, bannière MVP). Trois polices Google Fonts avec un rôle chacune : **Fraunces** (serif) pour les titres/gros chiffres, **Inter** pour le texte UI, **JetBrains Mono** pour tout ce qui est chiffré (timer, PIN, scores). Pas d'emoji utilisé comme icône fonctionnelle — la fonction `icon(name)` (SVG inline, trait `currentColor`) couvre boutons/actions ; les emojis restent réservés aux avatars joueurs (choix ludique assumé) et aux lettres/tuiles décoratives.
+- Identité visuelle "carnet de scores / plateau de jeu" : fond papier crème + grille de points en `radial-gradient`, encre foncée pour le texte, un seul accent (brique `--accent`) réservé aux actions primaires et un second (moutarde `--accent-2`) pour les highlights ludiques (badge hôte, 1ère place, bannière MVP). Trois polices Google Fonts avec un rôle chacune : **Fraunces** (serif) pour les titres/gros chiffres, **Inter** pour le texte UI, **JetBrains Mono** pour tout ce qui est chiffré (timer, PIN, scores). Pas d'emoji utilisé comme icône fonctionnelle — la fonction `icon(name)` (SVG inline, trait `currentColor`) couvre boutons/actions ; les emojis restent réservés aux avatars joueurs (choix ludique assumé) et aux lettres/tuiles décoratives. La marque du bandeau (`brandMark()`, le crayon) est volontairement **à part** d'`icon()` : les icônes d'interface sont en trait fin monochrome, la marque est une forme pleine cernée d'encre comme les tuiles — un crayon en trait fin détonnait à côté du reste.
+- **Polices chargées sans bloquer le rendu** (`<link media="print" onload="this.media='all'">`, id `font-css`). En feuille de style classique, rien ne s'affichait tant qu'elle n'était pas arrivée : écran blanc, puis animation du splash déjà terminée puisque ses délais avaient couru pendant l'attente. Le départ de l'animation attend explicitement la police (`whenDisplayFontReady`, plafond de 600ms) — ne repasse pas ce `<link>` en feuille bloquante.
 - Motif visuel récurrent : "tuile tamponnée" — bordure encre + ombre portée dure (offset, pas de flou) sur les tuiles de lettre, le logo, les digits de PIN, les avatars et les CTA (`.cta`). Les cartes de contenu (réponses, review, listes) restent plates avec une simple bordure fine, pour garder une hiérarchie claire entre "élément interactif/ludique" et "conteneur d'info".
 - Projet Firebase : `petit-bac-c24bf`. Config déjà dans `index.html` (l'apiKey Firebase web n'est pas un secret, normal qu'il soit visible côté client — la sécurité passe par les Rules).
 - **Règles Firebase en mode test** (lecture/écriture ouverte). Ça expire ~30 jours après activation — à surveiller, sinon l'app cesse de fonctionner sans prévenir côté code.
@@ -75,8 +76,16 @@ games/{pin}/                    pin = code à 4 chiffres, sert aussi de clé Fir
 
 - **Onglets en arrière-plan** : les navigateurs mobiles peuvent throttle `setInterval` quand l'onglet n'est pas au premier plan, ce qui peut retarder ou empêcher l'auto-soumission des réponses. Double filet de sécurité déjà en place : un listener `visibilitychange` relance `tick()` au retour au premier plan, ET `submitMyAnswers()` est aussi appelé directement depuis le callback du listener Firebase temps réel (`roomSnapshotHandler`), pas uniquement depuis le timer local. Si tu touches à cette logique, garde les deux déclencheurs.
 - **Identité joueur** = `localStorage` par appareil/navigateur (`pb_identity_<pin>`), pas d'authentification réelle. Changer de navigateur/appareil = nouveau joueur dans la même partie.
-- Pas de tests automatisés — teste manuellement avec plusieurs onglets/navigateurs/profils pour simuler plusieurs joueurs.
+- **Champs de saisie à 16px minimum** : en dessous, Safari iOS zoome automatiquement l'écran au focus. C'est la raison du `font-size:16px` en dur sur le textarea des catégories.
 - Pas de gestion explicite du cas où l'hôte quitte définitivement une partie en cours (plus personne ne peut lancer la manche suivante depuis le lobby si l'hôte n'est pas revenu).
+
+## Comment tester
+
+Pas de suite de tests dans le repo, mais deux techniques qui marchent bien et qui ont servi à valider le scoring, la synchro et les animations :
+
+- **Fonctions pures** (`scoreRound`, `sameWord`, `levenshtein`, `pickLetter`, `recentLetters`…) : extraire le `<script>` inline (commande plus haut), découper la fonction voulue par comptage d'accolades, `eval` dans un script Node jetable, et vérifier les cas limites. Ça évite d'ouvrir un navigateur pour un changement de règle de score.
+- **App complète** : navigateur headless (Playwright/Chromium) avec `firebase` et `QRCode` remplacés par des bouchons injectés avant le chargement de la page, puis appel direct de `roomSnapshotHandler({ val: … })` pour pousser des états de partie arbitraires. Deux onglets avec le même objet de partie partagé permettent de rejouer une vraie partie à plusieurs et de vérifier la synchronisation. Pour les animations, échantillonner `getComputedStyle(el).opacity` à des instants précis est plus fiable qu'une capture d'écran.
+- Et dans tous les cas, un passage manuel sur le déploiement réel avec plusieurs onglets/navigateurs/profils : rien ne remplace le vrai Firebase et le vrai Safari iOS.
 
 ## Historique (ordre de construction, pour comprendre le "pourquoi" de certains choix)
 
@@ -89,9 +98,16 @@ games/{pin}/                    pin = code à 4 chiffres, sert aussi de clé Fir
 7. Nettoyage auto des parties inactives (3 min)
 8. Lancement réservé à l'hôte, nombre de manches configurable, écran de classement/podium entre les manches et en fin de partie
 9. Refonte complète de l'identité visuelle ("carnet de scores" papier + tuiles tamponnées, palette brique/moutarde, typographie Fraunces/Inter/JetBrains Mono, icônes SVG à la place des emojis fonctionnels) — comportement JS et modèle de données Firebase inchangés, seuls les `render*()` et le `<style>` ont été réécrits
+10. Icônes PWA/favicon régénérées dans la nouvelle DA, correction du zoom iOS sur les champs, et écran de manche réorganisé (lettre à gauche du minuteur, en-tête fixe et liste de réponses seule à défiler)
+11. Podium animé : roulement de tambour, révélation par paliers (3e, 2e, puis 1er sous un projecteur avec confettis, enfin le reste du classement), rangs en or/argent/bronze
+12. Écran de lancement animé (tuiles PETIT BAC qui tombent) servant aussi d'écran de chargement, recalé au pixel près sur le logo de l'accueil ; chargeur maison en mini-tuiles pour les autres attentes
+13. Refonte de l'accueil : liste des parties déplacée dans une popup derrière un bouton "Rejoindre", hero aéré, bloc de stats locales, marque redessinée en crayon plein
+14. Règles de jeu : validation par défaut (on ne vote que pour refuser), une lettre = 0, doublons détectés à la faute de frappe près, écrans de validation synchronisés entre joueurs, et mémoire des 13 dernières lettres tirées
 
 ## Pistes non traitées
 
 - Resserrer les règles Firebase avant l'expiration du mode test
 - Pas de reconnexion réseau explicite au-delà du comportement natif du SDK Firebase
 - Pas de gestion du départ définitif de l'hôte
+- Icônes PWA/favicon : une piste "PB + crayon" a été maquettée mais pas retenue à ce jour, les icônes en place restent le "B" sur fond brique
+- Un seul refus suffit à annuler une réponse : suffisant entre amis, mais rien n'empêche un joueur d'invalider tout le monde

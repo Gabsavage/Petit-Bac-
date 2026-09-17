@@ -1,6 +1,6 @@
-# 🎲 Petit Bac
+# Petit Bac
 
-Jeu du Petit Bac multijoueur en temps réel, jouable entre potes depuis un navigateur mobile. Une lettre tombe, chacun tape ses mots dans un temps limité, puis le groupe vote pour valider ou refuser chaque réponse.
+Jeu du Petit Bac multijoueur en temps réel, jouable depuis un navigateur mobile — côte à côte ou à distance, sans papier. Une lettre tombe, chacun remplit ses catégories dans le temps imparti, puis le groupe valide les réponses avant le podium.
 
 ## Stack
 
@@ -8,7 +8,15 @@ Jeu du Petit Bac multijoueur en temps réel, jouable entre potes depuis un navig
 - **Firebase Realtime Database** pour l'état de jeu en temps réel (pas de backend custom)
 - Hébergé sur **Vercel**, déployé automatiquement à chaque push sur `main`
 - QR code généré côté client via [qrcodejs](https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js) (cdnjs)
-- Identité visuelle façon carnet de scores : fond papier, tuiles façon Scrabble, palette brique/moutarde. Polices **Fraunces** (titres), **Inter** (interface) et **JetBrains Mono** (chiffres) via Google Fonts ; icônes SVG inline à la place des emojis fonctionnels
+- Installable en PWA (`manifest.json` + icônes)
+
+## Direction artistique
+
+Identité "carnet de scores" : fond papier crème avec une grille de points, encre foncée, un accent brique réservé aux actions primaires et un accent moutarde pour les moments ludiques. Motif récurrent de "tuile tamponnée" (bordure encre + ombre portée dure) sur le logo, les lettres, les avatars et les boutons principaux.
+
+Trois polices avec un rôle chacune : **Fraunces** pour les titres et les gros chiffres, **Inter** pour l'interface, **JetBrains Mono** pour tout ce qui est chiffré (minuteur, scores). Les icônes sont des SVG inline ; les emojis restent réservés aux avatars des joueurs.
+
+Thème clair et thème sombre, suivant le réglage du système.
 
 ## Développement local
 
@@ -18,7 +26,7 @@ Pas de build, pas d'installation. Ouvre `index.html` directement dans un navigat
 python3 -m http.server 8000
 ```
 
-La base Firebase utilisée est celle de prod (projet `petit-bac-c24bf`) — teste en créant tes propres parties, ça n'affecte personne d'autre.
+La base Firebase utilisée est celle de prod (projet `petit-bac-c24bf`) — teste en créant tes propres parties, ça n'affecte personne d'autre. Pour simuler plusieurs joueurs, ouvre plusieurs onglets dans des profils ou des navigateurs différents (l'identité est stockée par navigateur).
 
 ## Déploiement
 
@@ -32,23 +40,35 @@ La base Firebase utilisée est celle de prod (projet `petit-bac-c24bf`) — test
 - Règles actuellement en **mode test** (lecture/écriture ouverte à qui a la config) — Firebase désactive ça après ~30 jours ; il faudra resserrer les règles ou renouveler le mode test avant l'échéance
 - La config Firebase (apiKey, etc.) est directement dans `index.html` — c'est normal pour une web app Firebase : l'apiKey web n'est pas un secret, la sécurité passe par les Rules, pas par la confidentialité de la clé
 
-## Fonctionnalités actuelles
+## Déroulé d'une partie
 
-- Créer une partie (avatar emoji + couleur, prénom) → génère un code à 4 chiffres
-- Rejoindre via QR code, lien direct (`?pin=XXXX`), ou depuis la liste "Parties en cours" sur l'accueil
-- Seul l'hôte (créateur) peut lancer une manche
-- Réglages avant de jouer : catégories personnalisables, durée de manche (60/90/120s), nombre de manches (3/5/10/∞)
-- Manche "rapide" : le premier joueur qui clique "J'ai fini" déclenche 5s de grâce pour les autres avant fin de manche automatique
-- Écran de review catégorie par catégorie avec vote ✅/❌ collectif sur chaque réponse
-- Scoring : 2 pts réponse unique validée, 1 pt en double validée, 0 sinon
-- Classement avec podium entre chaque manche, écran de fin de partie avec vainqueur
+1. **Accueil** — écran de lancement animé (les tuiles PETIT BAC tombent une à une), puis deux actions : créer une partie, ou rejoindre depuis la liste des parties en cours. Un bloc de statistiques locales (manches jouées, record, dernière lettre) apparaît une fois qu'on a joué.
+2. **Création** — choix de l'avatar (emoji + couleur) et du prénom. La partie obtient un code à 4 chiffres, qui sert de clé Firebase mais n'est jamais affiché : on rejoint par QR code, par lien (`?pin=XXXX`) ou depuis la liste.
+3. **Salle d'attente** — QR code à scanner, joueurs présents, catégories. Seul l'hôte lance la manche. Les réglages (catégories, durée 60/90/120s, nombre de manches 3/5/10/∞) sont accessibles juste au-dessus du bouton de lancement.
+4. **Manche** — décompte de 3s, puis la lettre s'affiche à gauche du minuteur. Le premier qui clique "J'ai fini" déclenche 5s de grâce pour les autres, après quoi la manche se termine pour tout le monde.
+5. **Validation** — catégorie par catégorie, synchronisée : tout le monde voit la même au même moment, et n'importe qui fait avancer le groupe. Les réponses comptent par défaut, un bouton permet de refuser celles qui ne vont pas.
+6. **Podium** — roulement de tambour, puis révélation par paliers : 3e, 2e, puis la 1re place sous un projecteur avec des confettis, et enfin le reste du classement.
+
+## Règles de score
+
+- **2 pts** pour une réponse que personne d'autre n'a, **1 pt** si elle est en double, **0** sinon
+- Les réponses sont **valides par défaut** — on ne vote que pour refuser, et un seul refus suffit à annuler une réponse
+- Une réponse d'**une seule lettre** vaut 0 automatiquement, sans passer par un vote
+- Les **fautes de frappe** comptent comme des doublons : "Hongrie" et "Hongrir" donnent 1 pt chacun et non 2 réponses uniques (distance de Levenshtein, seuil proportionnel à la longueur du mot)
+- Une lettre déjà tirée ne peut pas revenir avant **13 tirages**, y compris après un "Rejouer"
+
+## Autres comportements
+
 - Nettoyage automatique : une partie sans activité depuis 3 min se ferme toute seule
+- Les réponses sont sauvegardées en cours de frappe : recharger l'onglet en pleine manche ne les perd pas
+- Auto-soumission des réponses à la fin du temps, même si l'onglet est passé en arrière-plan
 
 ## Limitations connues
 
 - Pas de vraie authentification : l'identité d'un joueur est stockée en `localStorage` par appareil/navigateur — changer de navigateur = nouveau joueur
-- Pas de tests automatisés
+- Pas de suite de tests dans le repo (voir `CLAUDE.md` pour la façon de tester les fonctions pures et l'app en navigateur headless)
 - Règles Firebase en mode test (voir plus haut)
 - Pas de gestion de reconnexion réseau au-delà de ce que fait nativement le SDK Firebase
+- Si l'hôte quitte définitivement une partie en cours, plus personne ne peut lancer la manche suivante
 
 Pour le contexte de développement détaillé (conventions de code, modèle de données, pièges connus), voir [`CLAUDE.md`](./CLAUDE.md).
