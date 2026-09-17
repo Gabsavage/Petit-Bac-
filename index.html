@@ -83,11 +83,19 @@ body{margin:0;background-color:var(--paper);background-image:radial-gradient(var
    dans les bandes que l'UI laisse libres. C'est tout l'intérêt par rapport à une
    image de fond : une compo figée calée sur un écran de 844pt tombe à côté sur un
    téléphone plus haut, là où un dessin ancré « à 70px du bandeau » reste en place. */
+/* Le papier apparaît en fondu quand le splash se retire, et les griffonnages
+   juste après : la page se pose, puis on la griffonne. Le splash est opaque et
+   s'efface en .45s, donc un réglage à pleine force dessous surgissait d'un coup.
+   La classe `ready` est posée par `hideSplash()`. */
 .paper-doodles{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+  opacity:0;transition:opacity .85s ease;
   background-image:
     linear-gradient(90deg, transparent 27px, var(--rule-red) 27px, var(--rule-red) 28.5px, transparent 28.5px),
     repeating-linear-gradient(to bottom, transparent 0, transparent 27px, var(--rule-blue) 27px, var(--rule-blue) 28px);
   background-position:0 0, 0 60px;}
+.paper-doodles.ready{opacity:1;}
+.paper-doodles .doodle{opacity:0;transition:opacity .7s ease .3s;}
+.paper-doodles.ready .doodle{opacity:1;}
 .doodle{position:absolute;display:block;background-color:var(--doodle-ink);
   -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
   -webkit-mask-size:contain;mask-size:contain;
@@ -361,6 +369,7 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
 @keyframes loaderHop{from{transform:translateY(0);}to{transform:translateY(-8px);}}
 .loader-label{margin:16px 0 0;font-family:var(--font-mono);font-size:.74rem;letter-spacing:.04em;color:var(--ink-soft);}
 @media (prefers-reduced-motion: reduce){
+  .paper-doodles,.paper-doodles .doodle{transition:none;}
   .loader-tile{animation:none;}
   .splash.go .splash-tile,.splash.go .splash-by{animation:none;}
   .splash.go .splash-tile{opacity:1;transform:rotate(var(--rot));}
@@ -1779,14 +1788,14 @@ function updateCountdownUI(){
    bande libre : il ne garde que le papier réglé. */
 const PAPER_DOODLES = {
   accueil: [
-    { n:'fusee',       t:70,  x:'1%',   w:76, h:112, r:-6 },
-    { n:'soleil',      t:74,  rx:'3%',  w:56, h:78,  r:0 },
+    { n:'fusee',       t:84,  x:'5%',   w:68, h:100, r:-6 },
+    { n:'soleil',      t:92,  rx:'7%',  w:50, h:70,  r:0 },
     { n:'boucle',      t:126, rx:'24%', w:42, h:68,  r:-10 },
     { n:'etoile-a',    t:152, x:'32%',  w:30, h:36,  r:8 },
     { n:'spirale',     c:-46, x:'4%',   w:40, h:50,  r:0 },
     { n:'trajectoire', c:8,   rx:'5%',  w:62, h:46,  r:-6 },
     { n:'etoile-b',    c:26,  x:'35%',  w:26, h:31,  r:-12 },
-    { n:'coeur',       b:98,  x:'1%',   w:26, h:29,  r:-8 },
+    { n:'coeur',       b:98,  x:'4%',   w:26, h:29,  r:-8 },
     { n:'eclair',      b:74,  rx:'7%',  w:40, h:80,  r:6 },
     { n:'etoile-c',    b:36,  rx:'30%', w:24, h:30,  r:10 },
     { n:'avion',       b:28,  x:'7%',   w:64, h:57,  r:-4 }
@@ -2268,6 +2277,11 @@ function hideSplash(){
   splashDone = true;
   const el = document.getElementById('splash');
   if (el) el.classList.add('hidden');
+  /* Le fondu du papier part en même temps que l'effacement du splash : il dure
+     plus longtemps (.85s contre .45s), donc les lignes finissent d'apparaître
+     une fois le splash parti, au lieu de surgir d'un coup dessous. */
+  const calque = document.getElementById('paper-doodles');
+  if (calque) calque.classList.add('ready');
 }
 /* Cale le bloc du splash sur le logo de l'accueil, déjà rendu derrière lui : au
    fondu, les tuiles ne bougent pas d'un pixel. Mesuré plutôt que recopié en dur,

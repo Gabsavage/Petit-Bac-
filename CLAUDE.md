@@ -141,6 +141,8 @@ Le texte posé à même le fond est protégé par un **halo de papier** (`text-s
 
 `bgForScreen(screen, phase)` choisit le jeu de griffonnages et `renderTop()` le pose en `data-bg` sur le shell. Le calque n'est reconstruit **que si l'écran change** : `renderTop()` tourne à chaque snapshot Firebase, inutile de réécrire onze `<span>` à chaque battement de cœur.
 
+Le calque **arrive en fondu derrière le splash** : `.paper-doodles` part à `opacity:0`, `hideSplash()` lui pose la classe `ready` au moment même où il efface l'écran de lancement. Le fondu du papier (`.85s`) est plus long que celui du splash (`.45s`), et les griffonnages suivent avec `.3s` de retard sur le papier — les lignes finissent donc d'apparaître une fois le splash parti, puis l'encre, au lieu de surgir d'un bloc dessous. Les deux transitions sont coupées en `prefers-reduced-motion`. C'est `hideSplash()` qui déclenche tout : si tu changes la fin du splash, garde-y l'ajout de `ready`, sinon le fond reste invisible à vie.
+
 ## Points d'attention connus
 
 - **Onglets en arrière-plan** : les navigateurs mobiles peuvent throttle `setInterval` quand l'onglet n'est pas au premier plan, ce qui peut retarder ou empêcher l'auto-soumission des réponses. Double filet de sécurité déjà en place : un listener `visibilitychange` relance `tick()` au retour au premier plan, ET `submitMyAnswers()` est aussi appelé directement depuis le callback du listener Firebase temps réel (`roomSnapshotHandler`), pas uniquement depuis le timer local. Si tu touches à cette logique, garde les deux déclencheurs.
