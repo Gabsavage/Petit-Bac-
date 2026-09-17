@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Petit Bac</title>
-<meta name="theme-color" content="#17130E">
+<meta name="theme-color" content="#C1401C">
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
@@ -119,7 +119,7 @@ body{margin:0;background-color:var(--paper);background-image:radial-gradient(var
 .field{width:100%;background:var(--paper-raised);border:1.5px solid var(--line-strong);border-radius:12px;padding:14px 16px;
   font-size:1rem;color:var(--ink);font-family:var(--font-body);margin-bottom:10px;}
 .field:focus{outline:2px solid var(--accent);outline-offset:1px;}
-textarea.field{resize:vertical;font-family:var(--font-mono);font-size:.88rem;line-height:1.6;}
+textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-height:1.6;}
 .field-line{width:100%;background:none;border:none;border-bottom:2px solid var(--line-strong);border-radius:0;
   padding:10px 2px;font-family:var(--font-display);font-size:1.35rem;font-weight:600;color:var(--ink);text-align:center;}
 .field-line::placeholder{color:var(--invalid);font-weight:500;}
@@ -171,16 +171,22 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:.88rem;lin
   text-transform:uppercase;color:var(--accent-2-ink);background:var(--accent-2);padding:2px 7px 2px 5px;border-radius:100px;}
 .host-tag .icon{width:10px;height:10px;}
 .hero{display:flex;flex-direction:column;align-items:center;padding:18px 0 6px;}
-.letter-badge{position:relative;width:104px;height:104px;border-radius:18px;background:var(--paper-raised);color:var(--ink);
+.letter-badge{position:relative;width:88px;height:88px;border-radius:16px;background:var(--paper-raised);color:var(--ink);
   display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:700;
-  font-size:2.9rem;border:2.25px solid var(--ink);box-shadow:5px 5px 0 var(--ink);
+  font-size:2.5rem;border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink);flex-shrink:0;
   animation:popIn .35s cubic-bezier(.34,1.56,.64,1);}
-.letter-badge .tile-pts{right:9px;bottom:7px;font-size:.85rem;}
+.letter-badge .tile-pts{right:7px;bottom:5px;font-size:.72rem;}
 .letter-badge.small{width:62px;height:62px;font-size:1.75rem;border-radius:12px;border-width:1.75px;box-shadow:3px 3px 0 var(--ink);margin-bottom:2px;}
 .letter-badge.small .tile-pts{right:5px;bottom:3px;font-size:.55rem;}
 @keyframes popIn{from{transform:scale(.4);opacity:0;}to{transform:scale(1);opacity:1;}}
 @media (prefers-reduced-motion: reduce){.letter-badge,.countdown-number.pulse{animation:none;}}
-.timer-ring{position:relative;width:112px;height:112px;margin-top:16px;}
+.play-screen{display:flex;flex-direction:column;height:100%;}
+.play-header{display:flex;align-items:center;justify-content:center;gap:22px;padding:10px 0 4px;flex:0 0 auto;}
+.play-status{width:88px;height:88px;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:5px;color:var(--ink-soft);font-size:.78rem;line-height:1.3;text-align:center;}
+.play-status .icon{width:26px;height:26px;color:var(--success);}
+.answer-scroll{flex:1 1 auto;overflow-y:auto;min-height:0;}
+.timer-ring{position:relative;width:88px;height:88px;flex-shrink:0;}
 .timer-ring svg{width:100%;height:100%;transform:rotate(-90deg);}
 .ring-bg{fill:none;stroke:var(--line);stroke-width:8;}
 .ring-fg{fill:none;stroke:var(--accent);stroke-width:8;stroke-linecap:round;stroke-dasharray:326.7;
@@ -194,9 +200,9 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:.88rem;lin
   background:var(--paper-raised);display:flex;align-items:center;justify-content:center;box-shadow:5px 5px 0 var(--ink);}
 .countdown-number{font-family:var(--font-display);font-size:3.6rem;font-weight:700;color:var(--ink);line-height:1;}
 .countdown-number.pulse{animation:popIn .3s cubic-bezier(.34,1.56,.64,1);}
-.answer-list{display:flex;flex-direction:column;margin-top:16px;border-radius:14px;overflow:hidden;
+.answer-list{display:flex;flex-direction:column;margin-top:8px;border-radius:14px;overflow:hidden;
   background:var(--paper-raised);border:1.5px solid var(--line-strong);}
-.answer-row{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line);}
+.answer-row{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--line);}
 .answer-row:last-child{border-bottom:none;}
 .answer-row .cat-label{flex:0 0 38%;font-size:.72rem;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;}
 .answer-row input{flex:1;border:none;background:transparent;font-size:1.05rem;color:var(--ink);font-weight:600;
@@ -763,24 +769,24 @@ function renderCountdownContent(){
 }
 function renderPlayingContent(s){
   const round = s.currentRound;
-  let html = '<div class="hero"><div class="letter-badge">'+esc(round.letter)+'<b class="tile-pts">'+scrabbleValue(round.letter)+'</b></div>';
+  let html = '<div class="play-screen"><div class="play-header"><div class="letter-badge">'+esc(round.letter)+'<b class="tile-pts">'+scrabbleValue(round.letter)+'</b></div>';
   if (locked){
-    html += '<p class="muted" style="margin-top:16px;text-align:center;">'+icon('check')+' Réponses envoyées.<br>En attente des autres joueurs…</p>';
+    html += '<div class="play-status">'+icon('check')+'<span>Envoyé !<br>En attente des autres…</span></div>';
   } else {
     html += '<div class="timer-ring"><svg viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"></circle>' +
       '<circle class="ring-fg" id="ring-fg" cx="60" cy="60" r="52"></circle></svg>' +
       '<div class="timer-ring-label" id="timer-display">--:--</div></div>';
-    if (round.finishedAt){
-      const finisherName = (s.players[round.finishedBy] && s.players[round.finishedBy].name) || 'Un joueur';
-      html += '<p class="hurry-banner">'+icon('bolt')+esc(finisherName)+' a fini, dépêche-toi !</p>';
-    }
   }
   html += '</div>';
-  html += '<div class="answer-list">' + s.categories.map(function(cat, idx){
+  if (!locked && round.finishedAt){
+    const finisherName = (s.players[round.finishedBy] && s.players[round.finishedBy].name) || 'Un joueur';
+    html += '<p class="hurry-banner">'+icon('bolt')+esc(finisherName)+' a fini, dépêche-toi !</p>';
+  }
+  html += '<div class="answer-scroll"><div class="answer-list">' + s.categories.map(function(cat, idx){
     const val = localAnswers[idx] || '';
     const dis = locked ? 'disabled' : '';
     return '<div class="answer-row"><span class="cat-label">'+esc(cat)+'</span><input type="text" class="answer-input" data-cat="'+idx+'" '+dis+' value="'+esc(val)+'" autocomplete="off" placeholder="…"></div>';
-  }).join('') + '</div>';
+  }).join('') + '</div></div></div>';
   return html;
 }
 function renderPlayingBottom(){
