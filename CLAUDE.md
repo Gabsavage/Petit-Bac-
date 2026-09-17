@@ -94,6 +94,14 @@ Le tirage se fait **à la création et à chaque retour au salon** (`handleRepla
 - Le podium est animé par paliers (3e, 2e, 1er + projecteur + confettis, puis les 4e et suivants). Seule la *lecture* de l'animation est locale (`podiumRevealed`, `podiumSettled`, `confettiFired`) ; son point de départ vient de `leaderboardAt`, partagé, pour que tout le monde voie le podium au même moment. `podiumSettled` retire les classes d'animation une fois la séquence jouée : sans lui, le moindre snapshot Firebase rejouerait toute la révélation.
 - **État local propre à une manche** : `localAnswers`, `locked` et `hasAutoSubmitted` sont resynchronisés par `syncRoundLocalState()` à chaque changement de numéro de manche. Ne les remets pas à zéro uniquement à l'entrée dans la partie : c'était le cas avant, d'où des réponses de la manche précédente pré-remplies, grisées pour qui avait fini premier, et surtout plus aucun envoi de réponses dès la 2e manche.
 
+## Écran de salle d'attente
+
+Refait pour ressembler à un salon de jeu plutôt qu'à une fiche : les **joueurs sont en haut**, en grille alignée à gauche, avec une case « + » permanente qui ouvre l'invitation — un salon qui se remplit, pas un avatar seul au milieu. Chaque cellule réserve une ligne (`.tag-slot`) pour le badge « hôte », badge ou pas : sans ça la cellule de l'hôte est plus haute et décale toute la rangée suivante.
+
+Le **QR a quitté `#content`** pour la feuille du bas (`openInviteSheet`), à 200px au lieu de 100 : il se scanne mieux et il ne mange plus le haut de l'écran une fois tout le monde arrivé. `renderQr()` est donc appelé depuis `openInviteSheet()` et **plus** depuis `renderTop()` — si tu remets un QR dans le salon, il faut re-brancher cet appel. La feuille propose aussi « Partager le lien » (`handleShareLink`) : partage natif si `navigator.share` existe, presse-papier sinon, toast avec l'URL en dernier recours. Les trois peuvent échouer ou être annulés, aucun n'est traité comme une erreur.
+
+Les **règles du match** (nombre de manches, durée) sont affichées en deux pastilles cliquables qui ouvrent les réglages : c'était invisible avant, il fallait ouvrir la feuille pour savoir en combien de manches on jouait. Les **catégories** sont une liste alignée (`.cat-list`) et non plus un nuage de pastilles centrées, avec le re-tirage à portée de pouce dans l'en-tête — réservé à l'hôte, comme le lancement.
+
 ## Points d'attention connus
 
 - **Onglets en arrière-plan** : les navigateurs mobiles peuvent throttle `setInterval` quand l'onglet n'est pas au premier plan, ce qui peut retarder ou empêcher l'auto-soumission des réponses. Double filet de sécurité déjà en place : un listener `visibilitychange` relance `tick()` au retour au premier plan, ET `submitMyAnswers()` est aussi appelé directement depuis le callback du listener Firebase temps réel (`roomSnapshotHandler`), pas uniquement depuis le timer local. Si tu touches à cette logique, garde les deux déclencheurs.
@@ -138,6 +146,8 @@ Pas de suite de tests dans le repo, mais deux techniques qui marchent bien et qu
 18. Vote à la majorité pour exclure une réponse (et interdiction de voter contre son propre mot), et nouvelles catégories à chaque retour au salon
 
 19. Articles en tête de réponse ignorés, et abréviations traitées comme des doublons (« foot » = « football »), pour la détection des doublons et l'alerte sur l'initiale
+
+20. Refonte de la salle d'attente : joueurs en tête avec case « + », QR déplacé dans une feuille avec partage de lien, règles du match visibles, catégories en liste alignée
 
 ## Pistes non traitées
 

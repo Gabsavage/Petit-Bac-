@@ -179,12 +179,46 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
 .color-choice{width:28px;height:28px;border-radius:50%;border:2px solid var(--paper-raised);box-shadow:0 0 0 1.5px var(--line-strong);cursor:pointer;}
 .color-choice.selected{box-shadow:0 0 0 2px var(--ink);}
 .ticket-card{background:var(--paper-raised);border:1.75px dashed var(--line-strong);border-radius:16px;padding:10px 14px 8px;text-align:center;}
-.share-block{padding:6px 0 4px;}
-.qr-canvas{display:flex;justify-content:center;margin:2px auto 12px;}
-.qr-canvas img,.qr-canvas canvas{border-radius:10px;border:1.5px solid var(--line-strong);}
-.lobby-grid{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;padding:8px 0 0;}
-.lobby-avatar{display:flex;flex-direction:column;align-items:center;gap:6px;width:76px;}
+/* Salle d'attente : les joueurs sont le sujet de l'écran, pas le QR. La grille
+   est alignée à gauche et comporte toujours une case « + » : un salon qui se
+   remplit, plutôt qu'un avatar seul flottant au milieu. */
+.lobby-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:12px 8px;padding:4px 0 2px;}
+.lobby-avatar{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;}
+/* Réservé dans chaque cellule, badge ou pas : sinon la cellule de l'hôte est plus
+   haute que les autres et décale toute la rangée suivante. */
+.tag-slot{height:17px;display:flex;align-items:center;justify-content:center;}
 .lobby-avatar[data-action]{cursor:pointer;}
+.lobby-slot{background:none;border:none;padding:0;font:inherit;color:var(--ink-soft);cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;}
+.lobby-slot .slot-ring{width:60px;height:60px;border-radius:50%;border:2px dashed var(--line-strong);
+  display:flex;align-items:center;justify-content:center;background:var(--paper-raised);}
+.lobby-slot .slot-ring .icon{width:22px;height:22px;}
+.lobby-slot:active .slot-ring{transform:scale(.94);}
+.lobby-slot .lobby-name{color:var(--ink-soft);font-weight:600;}
+.count-pill{font-family:var(--font-mono);font-size:.72rem;font-weight:700;color:var(--ink-soft);
+  border:1.5px solid var(--line-strong);border-radius:100px;padding:1px 8px;}
+/* Les réglages de la partie en une ligne, cliquable : c'était invisible jusque-là,
+   il fallait ouvrir la feuille pour savoir en combien de manches on jouait. */
+.rule-row{display:flex;gap:8px;margin:12px 0 2px;}
+.rule-chip{flex:1 1 0;display:flex;align-items:center;justify-content:center;gap:7px;background:none;
+  border:1.5px solid var(--line-strong);border-radius:12px;padding:9px 6px;cursor:pointer;color:var(--ink);
+  font-family:var(--font-body);min-width:0;}
+.rule-chip .icon{width:15px;height:15px;color:var(--ink-soft);flex-shrink:0;}
+.rule-chip b{font-family:var(--font-mono);font-size:.9rem;font-weight:700;}
+.rule-chip span{font-size:.72rem;color:var(--ink-soft);font-weight:600;}
+.rule-chip:active{transform:scale(.98);background:var(--surface-2);}
+/* Les catégories en liste alignée plutôt qu'en nuage de pastilles centrées :
+   ça se lit comme la grille de jeu qu'on va remplir. */
+.cat-list{background:var(--paper-raised);border:1.5px solid var(--line-strong);border-radius:14px;overflow:hidden;}
+.cat-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-top:1px solid var(--line);}
+.cat-row:first-child{border-top:none;}
+.cat-row .cat-emoji{font-size:1.05rem;line-height:1;width:22px;text-align:center;flex-shrink:0;
+  font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;}
+.cat-row .cat-name{font-size:.86rem;font-weight:600;line-height:1.25;}
+/* QR déplacé dans la feuille : en pleine largeur il se scanne mieux qu'à 100px,
+   et il ne mange plus le haut de l'écran une fois tout le monde arrivé. */
+.invite-qr{display:flex;justify-content:center;margin:4px auto 14px;}
+.invite-qr img,.invite-qr canvas{border-radius:12px;border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);}
 .lobby-name{font-size:.78rem;font-weight:600;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .host-tag{display:inline-flex;align-items:center;gap:3px;font-size:.6rem;font-weight:700;letter-spacing:.03em;
   text-transform:uppercase;color:var(--accent-2-ink);background:var(--accent-2);padding:2px 7px 2px 5px;border-radius:100px;}
@@ -814,6 +848,7 @@ function icon(name){
     settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 01-4 0v-.1a1.7 1.7 0 00-1-1.6 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 010-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V3a2 2 0 014 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H21a2 2 0 010 4h-.1a1.7 1.7 0 00-1.5 1z"/>',
     refresh: '<path d="M21 12a9 9 0 11-3-6.7"/><path d="M21 3v6h-6"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
+    link: '<path d="M10 13a5 5 0 007.5.5l3-3a5 5 0 00-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 00-7.5-.5l-3 3a5 5 0 007 7l1.7-1.7"/>',
     play: '<path d="M6 4l14 8-14 8V4z"/>',
     users: '<path d="M17 21v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>',
     crown: '<path d="M3 18h18l-1.5-9-4.5 4-3-6-3 6-4.5-4L3 18z"/>',
@@ -1227,24 +1262,86 @@ function syncRoundLocalState(){
 /* ---------- room content: lobby ---------- */
 function renderLobbyContent(s){
   const keys = Object.keys(s.players);
-  let html = '<div class="ticket-card share-block"><p class="section-heading" style="margin-top:0;">Inviter des amis</p>';
-  html += '<div id="qr-canvas" class="qr-canvas"></div>';
-  html += '<p class="muted" style="font-size:.8rem;">Scanne ce code pour rejoindre</p></div>';
-  html += '<p class="section-heading">Salle d’attente</p>';
+  const isHost = myKey === s.hostKey;
+
+  /* 1. Les joueurs d'abord. La case « + » ouvre le QR : c'est l'invitation, et
+     elle donne au salon l'air de se remplir plutôt que d'attendre. */
+  let html = '<div class="section-heading-row" style="justify-content:space-between;margin-top:6px;">' +
+    '<p class="section-heading">Joueurs</p>' +
+    '<span class="count-pill">' + keys.length + '</span></div>';
   html += '<div class="lobby-grid">' + keys.map(function(k){
-    const isMe = k === myKey;
-    const isHost = k === s.hostKey;
+    const me = k === myKey;
     return '<div class="lobby-avatar">' +
       playerAvatarHtml(s.players[k], 'big') +
-      '<span class="lobby-name">'+esc(s.players[k].name)+(isMe?' (toi)':'')+'</span>' +
-      (isHost?('<span class="host-tag">'+icon('crown')+'Hôte</span>'):'') +
+      '<span class="lobby-name">'+esc(s.players[k].name)+(me?' (toi)':'')+'</span>' +
+      '<span class="tag-slot">'+(k === s.hostKey ? ('<span class="host-tag">'+icon('crown')+'Hôte</span>') : '')+'</span>' +
       '</div>';
-  }).join('') + '</div>';
-  html += '<p class="section-heading">Catégories</p>';
-  html += '<div class="players-grid">' + s.categories.map(function(c){
-    return '<span class="chip"><span class="chip-emoji" aria-hidden="true">'+categoryEmoji(c)+'</span>'+esc(c)+'</span>';
+  }).join('') +
+    '<button type="button" class="lobby-slot" data-action="open-invite">' +
+      '<span class="slot-ring">'+icon('plus')+'</span>' +
+      '<span class="lobby-name">Inviter</span>' +
+      '<span class="tag-slot"></span>' +
+    '</button></div>';
+
+  /* 2. Les règles du match, lisibles sans ouvrir les réglages. */
+  const rounds = s.maxRounds ? String(s.maxRounds) : '∞';
+  const secs = Math.round((s.roundDurationMs || 90000) / 1000);
+  html += '<div class="rule-row">' +
+    '<button type="button" class="rule-chip" data-action="open-menu">'+icon('flag')+'<b>'+rounds+'</b><span>manche'+(s.maxRounds === 1 ? '' : 's')+'</span></button>' +
+    '<button type="button" class="rule-chip" data-action="open-menu">'+icon('bolt')+'<b>'+secs+'</b><span>secondes</span></button>' +
+  '</div>';
+
+  /* 3. La grille de catégories, alignée, avec le re-tirage à portée de pouce. */
+  html += '<div class="section-heading-row" style="justify-content:space-between;">' +
+    '<p class="section-heading">Catégories</p>' +
+    (isHost
+      ? '<button type="button" class="btn-link" data-action="shuffle-categories" style="padding:4px 0;">'+icon('refresh')+'Nouveau tirage</button>'
+      : '<span class="count-pill">'+s.categories.length+'</span>') + '</div>';
+  html += '<div class="cat-list">' + s.categories.map(function(c){
+    return '<div class="cat-row"><span class="cat-emoji" aria-hidden="true">'+categoryEmoji(c)+'</span>' +
+      '<span class="cat-name">'+esc(c)+'</span></div>';
   }).join('') + '</div>';
   return html;
+}
+/* Le QR vit désormais dans la feuille du bas : en pleine largeur il se scanne
+   mieux qu'à 100px, et il ne mange plus le haut de l'écran une fois tout le
+   monde arrivé. Le lien partageable comble au passage un manque : jusqu'ici,
+   inviter quelqu'un à distance supposait de lui faire scanner un QR. */
+function inviteSheetHtml(){
+  let html = '<h3 class="sheet-title">Inviter des amis</h3>';
+  html += '<div id="qr-canvas" class="invite-qr"></div>';
+  html += '<p class="muted" style="text-align:center;font-size:.85rem;margin:0 0 16px;">Scanne ce code pour rejoindre la partie</p>';
+  html += '<div class="sheet-actions" style="margin-top:0;">' +
+    '<button type="button" class="cta secondary" data-action="share-link">'+icon('link')+' Partager le lien</button>' +
+  '</div>';
+  return html;
+}
+function openInviteSheet(){
+  const el = document.getElementById('sheet-content');
+  if (el) el.innerHTML = inviteSheetHtml();
+  document.getElementById('bottom-sheet').classList.add('open');
+  document.getElementById('sheet-backdrop').classList.add('open');
+  renderQr();
+}
+function roomLink(){
+  return location.origin + location.pathname + '?pin=' + currentPin;
+}
+/* Partage natif quand le navigateur le propose (iOS, Android), presse-papier
+   sinon. Les deux peuvent échouer ou être annulés par l'utilisateur : on ne
+   traite ça comme une erreur dans aucun des deux cas. */
+function handleShareLink(){
+  if (!currentPin) return;
+  const url = roomLink();
+  if (navigator.share){
+    navigator.share({ title: 'Petit Bac', text: 'Rejoins ma partie de Petit Bac', url: url }).catch(function(){});
+    return;
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(function(){ showToast('Lien copié.'); })
+      .catch(function(){ showToast(url); });
+    return;
+  }
+  showToast(url);
 }
 function renderLobbyBottom(s){
   const settingsBtn = '<button type="button" class="cta secondary" data-action="open-menu">'+icon('settings')+' Paramètres</button>';
@@ -1261,8 +1358,8 @@ function renderQr(){
   el.innerHTML = '';
   try {
     new QRCode(el, {
-      text: location.origin + location.pathname + '?pin=' + currentPin,
-      width: 100, height: 100,
+      text: roomLink(),
+      width: 200, height: 200,
       colorDark: '#201C15', colorLight: '#ffffff',
       correctLevel: QRCode.CorrectLevel.M
     });
@@ -1694,7 +1791,6 @@ function renderTop(){
     const phase = getPhase(state);
     if (phase === 'playing') updateTimerUI();
     if (phase === 'countdown') updateCountdownUI();
-    if (phase === 'lobby') renderQr();
   }
   document.title = (uiScreen === 'room' && currentPin) ? ('Petit Bac · #'+currentPin) : 'Petit Bac';
   markAppReady();
@@ -2033,6 +2129,8 @@ document.addEventListener('click', function(e){
   else if (action === 'reset-scores') handleResetScores();
   else if (action === 'leave-room') handleLeaveRoom();
   else if (action === 'open-menu') openSheet();
+  else if (action === 'open-invite') openInviteSheet();
+  else if (action === 'share-link') handleShareLink();
   else if (action === 'close-menu') closeSheet();
 });
 document.addEventListener('input', function(e){
