@@ -53,11 +53,11 @@ La base Firebase utilisée est celle de prod (projet `petit-bac-c24bf`) — test
 ## Règles de score
 
 - **2 pts** pour une réponse que personne d'autre n'a, **1 pt** si elle est en double, **0** sinon
-- Les réponses sont **valides par défaut** — on ne vote que pour refuser, et un seul refus suffit à annuler une réponse
+- Les réponses sont **valides par défaut** — on ne vote que pour refuser, et il faut la **majorité des autres joueurs** : à 4 joueurs, 2 refus sur les 3 votants possibles. On ne vote pas contre son propre mot
 - Une réponse d'**une seule lettre** vaut 0 automatiquement, sans passer par un vote
 - Les **fautes de frappe** comptent comme des doublons : "Hongrie" et "Hongrir" donnent 1 pt chacun et non 2 réponses uniques (distance de Levenshtein, seuil proportionnel à la longueur du mot)
 - Une lettre déjà tirée ne peut pas revenir avant **13 tirages**, y compris après un "Rejouer"
-- Les catégories sont tirées au sort à la création de la partie, avec au plus deux catégories de la même famille — et restent modifiables dans les réglages du salon avant le lancement
+- Les catégories sont tirées au sort à la création de la partie et à chaque retour au salon, avec au plus deux catégories de la même famille — et restent modifiables dans les réglages avant le lancement
 
 ## Autres comportements
 

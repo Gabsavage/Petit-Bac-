@@ -635,6 +635,19 @@ function playerAvatarHtml(player, sizeClass, badgeHtml){
   const emo = (player && player.emoji) || '❓';
   return '<span class="avatar'+(sizeClass?(' '+sizeClass):'')+'" style="background:'+esc(bg)+'">'+esc(emo)+(badgeHtml||'')+'</span>';
 }
+/* Une réponse n'est exclue qu'à la majorité des AUTRES joueurs : son auteur ne
+   vote pas pour lui-même, donc sur une partie à 4 il faut 2 refus sur les 3
+   votants possibles. Avant, un seul refus suffisait — tenable entre gens de
+   bonne foi, mais un seul joueur pouvait invalider tout le monde.
+   Le dénominateur, ce sont les votants possibles et pas ceux qui ont voté :
+   sinon, à 10 joueurs, deux personnes pressées suffiraient à exclure un mot. */
+function refusalsNeeded(playerCount){
+  const voters = Math.max(0, playerCount - 1);
+  return Math.floor(voters / 2) + 1;   /* strictement plus de la moitié */
+}
+function isRefused(round, catIdx, key, playerCount){
+  return voteTally(round, catIdx, key).no >= refusalsNeeded(playerCount);
+}
 function voteTally(round, catIdx, key){
   const votes = (((round.votes||{})[catIdx]||{})[key]) || {};
   let yes = 0, no = 0;
@@ -682,11 +695,8 @@ function scoreRound(round, keys, categories){
       const raw = (answers[k] && answers[k][idx]) || '';
       const n = normalize(raw);
       if (!n || tooShort(raw)){ norms[k] = null; return; }
-      /* Les réponses sont validées par défaut ; on ne vote que pour refuser.
-         La comparaison avec les "oui" reste pour les manches déjà archivées,
-         jouées avec l'ancien écran à deux boutons. */
-      const tally = voteTally(round, idx, k);
-      norms[k] = (tally.no > tally.yes) ? null : n;
+      /* Validée par défaut ; on ne vote que pour refuser, et il faut la majorité. */
+      norms[k] = isRefused(round, idx, k, keys.length) ? null : n;
     });
     /* Regroupement des réponses identiques, fautes de frappe comprises. */
     const groups = [];
@@ -1289,24 +1299,34 @@ function renderRevealContent(s){
         '<p class="review-word">'+esc(raw)+' <span class="review-note">une seule lettre</span></p></div>';
     }
     const tally = voteTally(round, idx, k);
+    const needed = refusalsNeeded(keys.length);
     const votesForThis = (((round.votes||{})[idx]||{})[k]) || {};
     const iRefused = votesForThis[myKey] === false;
-    const refused = tally.no > tally.yes;
+    const refused = isRefused(round, idx, k, keys.length);
+    const mine = k === myKey;
     const n = normalize(raw);
     const letterWarn = !(n.length > 0 && n[0] === round.letter.toLowerCase());
     return '<div class="review-block"><div class="review-top">' + playerAvatarHtml(s.players[k],'small') +
       '<span class="review-who">'+who+'</span>' +
-      (tally.no ? '<span class="review-tally">'+icon('x')+tally.no+'</span>' : '') +
+      (tally.no ? '<span class="review-tally">'+icon('x')+tally.no+'/'+needed+'</span>' : '') +
       badge + '</div>' +
       '<p class="review-word'+(refused?' refused':'')+'">'+esc(raw)+(letterWarn?(' <span class="letter-warn" title="Ne commence pas par la lettre du tour">'+icon('warning')+'</span>'):'')+'</p>' +
-      '<div class="vote-row">' +
-        '<button type="button" class="vote-btn'+(iRefused?' active-no':'')+'" data-action="vote" data-cat="'+idx+'" data-target="'+k+'" data-value="no">' +
-          icon('x') + (iRefused ? 'Tu l’as refusée' : 'Refuser') + '</button>' +
-      '</div></div>';
+      /* On ne vote pas contre son propre mot : le bouton disparaît, le compteur reste. */
+      (mine ? '' :
+        '<div class="vote-row">' +
+          '<button type="button" class="vote-btn'+(iRefused?' active-no':'')+'" data-action="vote" data-cat="'+idx+'" data-target="'+k+'" data-value="no">' +
+            icon('x') + (iRefused ? 'Tu l’as refusée' : 'Refuser') + '</button>' +
+        '</div>') +
+      '</div>';
   }).join('');
   html += '</div>';
   if (idx > 0 && myKey === s.hostKey) html += '<div style="text-align:center;"><button type="button" class="btn-link" data-action="review-prev">'+icon('chevronLeft')+'Catégorie précédente</button></div>';
-  html += '<p class="legend">Tout compte par défaut : 2 pts si personne n’a le même mot, 1 pt sinon. Refuse une réponse si elle ne va pas.</p>';
+  const needed = refusalsNeeded(keys.length);
+  const needText = needed > 1
+    ? 'Il faut ' + needed + ' refus pour retirer une réponse'
+    : 'Un refus suffit à retirer une réponse';
+  html += '<p class="legend">Tout compte par défaut : 2 pts si personne n’a le même mot, 1 pt sinon. ' +
+    needText + ', et on ne vote pas contre son propre mot.</p>';
   return html;
 }
 function renderRevealBottom(s){
@@ -1713,7 +1733,10 @@ function handleResetScores(){
   if (!roomRef) return;
   if (!confirm('Revenir au salon pour tout le monde et remettre les scores à zéro ?')) return;
   setBusy(true, '…');
-  roomRef.update({ history: null, currentRound: null }).then(function(){ setBusy(false,''); closeSheet(); }).catch(function(){ setBusy(false,''); showToast('Erreur.'); });
+  /* Retour au salon = nouvelle partie : on retire des catégories, sinon on
+     rejouerait exactement la même grille. Elles restent modifiables dans les
+     réglages avant de relancer. */
+  roomRef.update({ history: null, currentRound: null, categories: randomCategories(CATEGORIES_PER_GAME) }).then(function(){ setBusy(false,''); closeSheet(); }).catch(function(){ setBusy(false,''); showToast('Erreur.'); });
 }
 function handleLeaveRoom(){
   /* L'hôte qui s'en va de lui-même passe la main immédiatement, plutôt que de
@@ -1753,6 +1776,7 @@ function handleShowLeaderboard(){
 }
 function handleVote(catIdx, targetKey, value){
   if (!roomRef || !myKey || !state.currentRound) return;
+  if (targetKey === myKey) return;   /* on ne vote pas contre sa propre réponse */
   const path = 'currentRound/votes/' + catIdx + '/' + targetKey + '/' + myKey;
   const votesForThis = (((state.currentRound.votes||{})[catIdx]||{})[targetKey]) || {};
   const current = votesForThis[myKey];
@@ -1798,7 +1822,7 @@ function handleSetMaxRounds(mr){
 function handleReplayGame(){
   if (!roomRef) return;
   setBusy(true, '…');
-  roomRef.update({ history: null, currentRound: null, lastActivity: Date.now() }).then(function(){ setBusy(false,''); }).catch(function(){ setBusy(false,''); showToast('Erreur.'); });
+  roomRef.update({ history: null, currentRound: null, categories: randomCategories(CATEGORIES_PER_GAME), lastActivity: Date.now() }).then(function(){ setBusy(false,''); }).catch(function(){ setBusy(false,''); showToast('Erreur.'); });
 }
 function submitMyAnswers(){
   if (hasAutoSubmitted || !roomRef) return;
