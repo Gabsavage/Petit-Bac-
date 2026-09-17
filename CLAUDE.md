@@ -78,6 +78,8 @@ Le tirage se fait **à la création et à chaque retour au salon** (`handleRepla
 
 **Scoring** (`scoreRound`) : une réponse est **valide par défaut**, l'écran de validation ne permet que de refuser, et il faut la **majorité des autres joueurs** pour l'exclure (`refusalsNeeded` / `isRefused`). L'auteur ne vote pas pour lui-même, donc le dénominateur est `nbJoueurs - 1` et le seuil est `floor(votants / 2) + 1` : à 4 joueurs il faut 2 refus sur 3 votants, à 3 joueurs il faut les 2 autres, à 2 joueurs le seul autre suffit. Le dénominateur, ce sont les **votants possibles** et pas ceux qui ont effectivement voté — sinon, à 10 joueurs, deux personnes pressées suffiraient. Le blocage de l'auto-vote est dans le rendu (pas de bouton sur sa propre réponse) **et** dans `handleVote`. Les anciens votes « oui » des manches archivées ne comptent plus que comme « pas un refus », ce qui donne le bon résultat. Une réponse d'une seule lettre vaut 0 sans vote. Les doublons sont détectés à la faute de frappe près (`sameWord`, distance de Levenshtein : 2 fautes à partir de 7 lettres, 1 à partir de 4, aucune en dessous) pour que "Hongrie"/"Hongrir" donnent 1 pt chacun.
 
+**Articles en tête de réponse** (`coreWord`) : « Une Ferrari » et « Ferrari », c'est le même mot — sans retirer l'article, l'écart de longueur dépassait le seuil de `sameWord` et les deux réponses valaient 2 pts chacune. `coreWord` sert au regroupement des doublons **et** à l'alerte « ne commence pas par la lettre du tour » (c'est le F de Ferrari qui compte), jamais à l'affichage : l'écran montre toujours ce que le joueur a tapé. Un **seul** article est retiré, les entrées sont testées de la plus longue à la plus courte (« de la » avant « de »), et on ne vide jamais la réponse : « L' » tout seul reste « l' », sinon il passerait de « réponse écrite » à « pas de réponse ». Attention si tu allonges la liste : un article ne matche qu'avec son espace ou son apostrophe, c'est ce qui empêche « Laurent » de devenir « urent ».
+
 **Piège important, ne pas régresser dessus** : les réponses et les votes sont indexés par **position dans le tableau `categories`** (`"0"`, `"1"`, `"2"`…), jamais par le nom de la catégorie. C'est volontaire : Firebase interdit `.` `#` `$` `[` `]` `/` dans les clés d'un objet, et une catégorie comme "Pays / Villes" cassait silencieusement l'écriture (`.set()` échouait, d'où un bug déjà vécu où aucune réponse n'apparaissait). Si tu ajoutes une nouvelle donnée indexée par catégorie, indexe-la par position (`idx` dans les boucles `categories.forEach(function(cat, idx){...})`), jamais par `cat` directement.
 
 ## Machine à états (`getPhase`)
@@ -132,6 +134,8 @@ Pas de suite de tests dans le repo, mais deux techniques qui marchent bien et qu
 17. Reprise automatique du rôle d'hôte quand il s'en va (battement de cœur `seen` + transaction sur `hostKey`), et validation réservée à l'hôte
 
 18. Vote à la majorité pour exclure une réponse (et interdiction de voter contre son propre mot), et nouvelles catégories à chaque retour au salon
+
+19. Articles en tête de réponse ignorés pour la détection des doublons et l'alerte sur l'initiale
 
 ## Pistes non traitées
 

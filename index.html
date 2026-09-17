@@ -658,6 +658,26 @@ function voteTally(round, catIdx, key){
 function tooShort(raw){
   return normalize(raw).length < 2;
 }
+/* Article en tête de réponse : « Une Ferrari » et « Ferrari », c'est le même mot,
+   et c'est le F qui compte pour la lettre du tour. On retire donc l'article avant
+   de comparer deux réponses et avant de vérifier l'initiale — jamais pour
+   l'affichage, qui garde ce que le joueur a tapé.
+   Un seul article est retiré (pas de boucle), et on ne vide jamais la réponse :
+   « L' ½ tout seul reste « l' ½ plutôt que de devenir une chaîne vide, sinon il
+   passerait de « réponse écrite » à « pas de réponse ». */
+const LEADING_ARTICLES = ['de la ','de l\'','des ','du ','de ','d\'','les ','le ','la ','l\'','une ','un ','aux ','au ']
+  .sort(function(a, b){ return b.length - a.length; });   /* le plus long d'abord : « de la » avant « de » */
+function coreWord(raw){
+  const n = normalize(raw);
+  for (let i = 0; i < LEADING_ARTICLES.length; i++){
+    const a = LEADING_ARTICLES[i];
+    if (n.indexOf(a) === 0){
+      const rest = n.slice(a.length).trim();
+      if (rest) return rest;
+    }
+  }
+  return n;
+}
 function levenshtein(a, b){
   if (a === b) return 0;
   const m = a.length, n = b.length;
@@ -693,7 +713,7 @@ function scoreRound(round, keys, categories){
     const norms = {};
     keys.forEach(function(k){
       const raw = (answers[k] && answers[k][idx]) || '';
-      const n = normalize(raw);
+      const n = coreWord(raw);
       if (!n || tooShort(raw)){ norms[k] = null; return; }
       /* Validée par défaut ; on ne vote que pour refuser, et il faut la majorité. */
       norms[k] = isRefused(round, idx, k, keys.length) ? null : n;
@@ -1304,7 +1324,7 @@ function renderRevealContent(s){
     const iRefused = votesForThis[myKey] === false;
     const refused = isRefused(round, idx, k, keys.length);
     const mine = k === myKey;
-    const n = normalize(raw);
+    const n = coreWord(raw);
     const letterWarn = !(n.length > 0 && n[0] === round.letter.toLowerCase());
     return '<div class="review-block"><div class="review-top">' + playerAvatarHtml(s.players[k],'small') +
       '<span class="review-who">'+who+'</span>' +
