@@ -8,7 +8,7 @@ Jeu du Petit Bac multijoueur en temps réel, jouable entre potes depuis un navig
 - **Firebase Realtime Database** pour l'état de jeu en temps réel (pas de backend custom)
 - Hébergé sur **Vercel**, déployé automatiquement à chaque push sur `main`
 - QR code généré côté client via [qrcodejs](https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js) (cdnjs)
-- Police **Baloo 2** (Google Fonts) pour l'identité visuelle ; le reste utilise les polices système
+- Identité visuelle façon carnet de scores : fond papier, tuiles façon Scrabble, palette brique/moutarde. Polices **Fraunces** (titres), **Inter** (interface) et **JetBrains Mono** (chiffres) via Google Fonts ; icônes SVG inline à la place des emojis fonctionnels
 
 ## Développement local
 
