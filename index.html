@@ -452,6 +452,7 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
     <span class="app-bar-title"><span id="brand-icon" class="brand-icon"></span>Petit Bac<span id="conn-dot" class="conn-dot hidden"></span></span>
     <button type="button" id="profile-btn" class="icon-btn" data-action="open-profile" aria-label="Ton profil" hidden></button>
     <button type="button" id="menu-btn" class="icon-btn" data-action="open-menu" aria-label="Réglages" hidden></button>
+    <button type="button" id="leave-btn" class="icon-btn" data-action="leave-room" aria-label="Quitter la partie" hidden></button>
   </div>
   <div id="scoreboard-strip" class="scoreboard-strip"></div>
   <main id="content" class="content"><div class="tile-loader-wrap full"><div class="tile-loader"><span class="loader-tile"></span><span class="loader-tile"></span><span class="loader-tile"></span></div><p class="loader-label">Connexion…</p></div></main>
@@ -1391,13 +1392,14 @@ function handleShareLink(){
   }
   showToast(url);
 }
+/* Plus de bouton « Paramètres » ici : les deux pastilles de règles du salon
+   ouvrent la même feuille, et la barre du bas ne porte plus que le lancement. */
 function renderLobbyBottom(s){
-  const settingsBtn = '<button type="button" class="cta secondary" data-action="open-menu">'+icon('settings')+' Paramètres</button>';
   if (myKey !== s.hostKey){
-    return '<div class="bottom-bar-stack">' + settingsBtn +
+    return '<div class="bottom-bar-stack">' +
       '<p class="muted" style="text-align:center;margin:2px 0 0;">En attente que l’hôte lance la manche…</p></div>';
   }
-  return '<div class="bottom-bar-stack">' + settingsBtn +
+  return '<div class="bottom-bar-stack">' +
     '<button type="button" class="cta" data-action="start-round">'+icon('play')+' Lancer la manche</button></div>';
 }
 function renderQr(){
@@ -1898,19 +1900,16 @@ function bgForScreen(screen, phase){
 function renderTop(){
   const inRoom = uiScreen === 'room';
   const roomPhase = inRoom ? getPhase(state) : null;
-  /* Le bouton de gauche a deux rôles : retour sur les écrans de saisie, et sortie
-     du salon une fois en partie. Sortir est une action de châssis, pas de contenu —
-     le mettre là plutôt que dans la barre du bas évite de le coller contre
-     « Lancer la manche ». On ne l'ouvre qu'au salon : en pleine manche, une croix
-     à l'endroit où le pouce cherche « retour » ferait sortir des gens par accident.
-     C'est aussi pour ça qu'il faut changer `data-action` et pas seulement l'icône. */
   const backVisible = (uiScreen === 'create' || uiScreen === 'join');
-  const leaveVisible = inRoom && roomPhase === 'lobby';
-  const backBtn = document.getElementById('back-btn');
-  backBtn.hidden = !backVisible && !leaveVisible;
-  backBtn.innerHTML = icon(leaveVisible ? 'exit' : 'back');
-  backBtn.dataset.action = leaveVisible ? 'leave-room' : 'go-home';
-  backBtn.setAttribute('aria-label', leaveVisible ? 'Quitter la partie' : 'Retour');
+  document.getElementById('back-btn').hidden = !backVisible;
+  document.getElementById('back-btn').innerHTML = icon('back');
+  /* Sortir du salon est une action de châssis, pas de contenu : elle vit dans la
+     barre du haut plutôt que collée au CTA « Lancer la manche ». Seulement au
+     salon — en pleine manche, une sortie à portée de pouce ferait partir des gens
+     par accident, et la feuille de réglages garde le lien pour ce cas. */
+  const leaveBtn = document.getElementById('leave-btn');
+  leaveBtn.hidden = !(inRoom && roomPhase === 'lobby');
+  leaveBtn.innerHTML = icon('exit');
   document.getElementById('menu-btn').hidden = !inRoom || roomPhase === 'lobby';
   document.getElementById('menu-btn').innerHTML = icon('settings');
   /* Un seul bouton à droite : profil sur l'accueil, réglages en partie. */
