@@ -83,19 +83,18 @@ body{margin:0;background-color:var(--paper);background-image:radial-gradient(var
    dans les bandes que l'UI laisse libres. C'est tout l'intérêt par rapport à une
    image de fond : une compo figée calée sur un écran de 844pt tombe à côté sur un
    téléphone plus haut, là où un dessin ancré « à 70px du bandeau » reste en place. */
-/* Le papier apparaît en fondu quand le splash se retire, et les griffonnages
-   juste après : la page se pose, puis on la griffonne. Le splash est opaque et
-   s'efface en .45s, donc un réglage à pleine force dessous surgissait d'un coup.
-   La classe `ready` est posée par `hideSplash()`. */
+/* Le calque est monté *pendant* le splash, pas après : ses masques sont des
+   fichiers à part, et sans préchargement les dessins se posaient un par un une
+   fois l'écran de lancement parti. `ready` est posée par `markDoodlesReady()`
+   dès que les masques de l'écran sont décodés — le splash étant opaque, le
+   fondu ne sert que de filet quand le plafond d'attente a sauté. */
 .paper-doodles{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;
-  opacity:0;transition:opacity .85s ease;
+  opacity:0;transition:opacity .4s ease;
   background-image:
     linear-gradient(90deg, transparent 27px, var(--rule-red) 27px, var(--rule-red) 28.5px, transparent 28.5px),
     repeating-linear-gradient(to bottom, transparent 0, transparent 27px, var(--rule-blue) 27px, var(--rule-blue) 28px);
   background-position:0 0, 0 60px;}
 .paper-doodles.ready{opacity:1;}
-.paper-doodles .doodle{opacity:0;transition:opacity .7s ease .3s;}
-.paper-doodles.ready .doodle{opacity:1;}
 .doodle{position:absolute;display:block;background-color:var(--doodle-ink);
   -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
   -webkit-mask-size:contain;mask-size:contain;
@@ -369,7 +368,7 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
 @keyframes loaderHop{from{transform:translateY(0);}to{transform:translateY(-8px);}}
 .loader-label{margin:16px 0 0;font-family:var(--font-mono);font-size:.74rem;letter-spacing:.04em;color:var(--ink-soft);}
 @media (prefers-reduced-motion: reduce){
-  .paper-doodles,.paper-doodles .doodle{transition:none;}
+  .paper-doodles{transition:none;}
   .loader-tile{animation:none;}
   .splash.go .splash-tile,.splash.go .splash-by{animation:none;}
   .splash.go .splash-tile{opacity:1;transform:rotate(var(--rot));}
@@ -546,6 +545,7 @@ const PODIUM_SETTLE_MS = 2600;
 const SPLASH_MIN_MS = 1300;   /* depuis le départ de l'animation, pour la voir en entier */
 const SPLASH_FONT_WAIT_MS = 600;  /* au-delà, on lance l'animation sans attendre la police */
 const SPLASH_MAX_MS = 3500;
+const DOODLE_WAIT_MS = 1800;  /* plafond d'attente des masques de griffonnages */
 const INACTIVITY_MS = 3 * 60 * 1000;
 /* Reprise du rôle d'hôte : chaque client marque sa présence toutes les 10s, et
    un hôte qu'on n'a plus vu depuis 90s est considéré parti. Le seuil est haut
@@ -595,6 +595,7 @@ let splashStart = Date.now();
 let splashAnimStart = 0;
 let splashDone = false;
 let appReady = false;
+let doodlesReady = false;
 let hasRenderedOnce = false;
 
 function esc(str){
@@ -1840,6 +1841,51 @@ function renderDoodles(bg){
     return '<span class="doodle" style="' + css + '"></span>';
   }).join('');
 }
+/* Les masques sont des fichiers à part : sans préchargement ils arrivent un par
+   un et les dessins se posent en ordre dispersé après le splash. On les décode
+   donc pendant l'écran de lancement, qui attend d'être complet pour se retirer.
+   Le plafond évite qu'un fichier muet retienne l'app — le filet final reste
+   SPLASH_MAX_MS. */
+function preloadDoodles(bg, cb){
+  const list = PAPER_DOODLES[bg] || [];
+  let reste = list.length;
+  let fini = false;
+  const termine = function(){
+    if (fini) return;
+    fini = true;
+    cb();
+  };
+  if (!reste){ termine(); return; }
+  const un = function(){
+    reste--;
+    if (reste <= 0) termine();
+  };
+  setTimeout(termine, DOODLE_WAIT_MS);
+  list.forEach(function(d){
+    const img = new Image();
+    img.onload = un;
+    img.onerror = un;
+    img.src = '/bg/d/' + d.n + '.png';
+  });
+}
+/* Les autres écrans sont préchargés une fois l'app affichée : 140 Ko en tout,
+   et le changement de fond en cours de partie devient instantané. */
+function preloadOtherDoodles(){
+  Object.keys(PAPER_DOODLES).forEach(function(bg){
+    if (bg === 'accueil') return;
+    (PAPER_DOODLES[bg] || []).forEach(function(d){
+      const img = new Image();
+      img.src = '/bg/d/' + d.n + '.png';
+    });
+  });
+}
+function markDoodlesReady(){
+  if (doodlesReady) return;
+  doodlesReady = true;
+  const calque = document.getElementById('paper-doodles');
+  if (calque) calque.classList.add('ready');
+  maybeHideSplash();
+}
 /* Le fond suit l'écran, et en partie la phase : le salon, la manche et le podium
    n'ont pas la même page de cahier. Les écrans de saisie (create/join) restent sur
    celle de l'accueil, ils en sont le prolongement. */
@@ -2277,11 +2323,11 @@ function hideSplash(){
   splashDone = true;
   const el = document.getElementById('splash');
   if (el) el.classList.add('hidden');
-  /* Le fondu du papier part en même temps que l'effacement du splash : il dure
-     plus longtemps (.85s contre .45s), donc les lignes finissent d'apparaître
-     une fois le splash parti, au lieu de surgir d'un coup dessous. */
-  const calque = document.getElementById('paper-doodles');
-  if (calque) calque.classList.add('ready');
+  /* Filet : si on sort par le plafond SPLASH_MAX_MS, les masques ne sont pas
+     forcément décodés et le calque n'a jamais reçu `ready`. Il ne doit pas
+     rester invisible pour autant. */
+  markDoodlesReady();
+  setTimeout(preloadOtherDoodles, 600);
 }
 /* Cale le bloc du splash sur le logo de l'accueil, déjà rendu derrière lui : au
    fondu, les tuiles ne bougent pas d'un pixel. Mesuré plutôt que recopié en dur,
@@ -2307,7 +2353,7 @@ function startSplashAnimation(){
 }
 function maybeHideSplash(){
   if (splashDone) return;
-  if (appReady && splashAnimStart && (Date.now() - splashAnimStart) >= SPLASH_MIN_MS) hideSplash();
+  if (appReady && doodlesReady && splashAnimStart && (Date.now() - splashAnimStart) >= SPLASH_MIN_MS) hideSplash();
 }
 /* Attend que la police d'affichage soit vraiment posée avant de lancer l'animation,
    sinon les tuiles démarrent en police de repli et basculent en plein vol. */
@@ -2341,6 +2387,7 @@ function markAppReady(){
 (function boot(){
   document.getElementById('brand-icon').innerHTML = brandMark();
   splashStart = Date.now();
+  preloadDoodles('accueil', markDoodlesReady);
   whenDisplayFontReady(startSplashAnimation);
   setTimeout(startSplashAnimation, SPLASH_FONT_WAIT_MS);
   setTimeout(hideSplash, SPLASH_MAX_MS);
