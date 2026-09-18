@@ -230,7 +230,11 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
 /* Les réglages de la partie en une ligne, cliquable : c'était invisible jusque-là,
    il fallait ouvrir la feuille pour savoir en combien de manches on jouait. */
 .rule-row{display:flex;gap:8px;margin:12px 0 2px;}
-.rule-chip{flex:1 1 0;display:flex;align-items:center;justify-content:center;gap:7px;background:none;
+/* Fond plein comme tout ce qui se touche dans l'app (.icon-btn, .cta.secondary,
+   .field) : en `background:none` le papier réglé traversait et les pastilles se
+   lisaient comme des étiquettes, alors qu'elles ouvrent les réglages. */
+.rule-chip{flex:1 1 0;display:flex;align-items:center;justify-content:center;gap:7px;
+  background:var(--paper-raised);
   border:1.5px solid var(--line-strong);border-radius:12px;padding:9px 6px;cursor:pointer;color:var(--ink);
   font-family:var(--font-body);min-width:0;}
 .rule-chip .icon{width:15px;height:15px;color:var(--ink-soft);flex-shrink:0;}
