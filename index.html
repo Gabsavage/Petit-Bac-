@@ -1896,11 +1896,21 @@ function bgForScreen(screen, phase){
   return 'manche';
 }
 function renderTop(){
-  const backVisible = (uiScreen === 'create' || uiScreen === 'join');
-  document.getElementById('back-btn').hidden = !backVisible;
-  document.getElementById('back-btn').innerHTML = icon('back');
   const inRoom = uiScreen === 'room';
   const roomPhase = inRoom ? getPhase(state) : null;
+  /* Le bouton de gauche a deux rôles : retour sur les écrans de saisie, et sortie
+     du salon une fois en partie. Sortir est une action de châssis, pas de contenu —
+     le mettre là plutôt que dans la barre du bas évite de le coller contre
+     « Lancer la manche ». On ne l'ouvre qu'au salon : en pleine manche, une croix
+     à l'endroit où le pouce cherche « retour » ferait sortir des gens par accident.
+     C'est aussi pour ça qu'il faut changer `data-action` et pas seulement l'icône. */
+  const backVisible = (uiScreen === 'create' || uiScreen === 'join');
+  const leaveVisible = inRoom && roomPhase === 'lobby';
+  const backBtn = document.getElementById('back-btn');
+  backBtn.hidden = !backVisible && !leaveVisible;
+  backBtn.innerHTML = icon(leaveVisible ? 'exit' : 'back');
+  backBtn.dataset.action = leaveVisible ? 'leave-room' : 'go-home';
+  backBtn.setAttribute('aria-label', leaveVisible ? 'Quitter la partie' : 'Retour');
   document.getElementById('menu-btn').hidden = !inRoom || roomPhase === 'lobby';
   document.getElementById('menu-btn').innerHTML = icon('settings');
   /* Un seul bouton à droite : profil sur l'accueil, réglages en partie. */
@@ -2046,6 +2056,10 @@ function handleResetScores(){
   roomRef.update({ history: null, currentRound: null, categories: randomCategories(CATEGORIES_PER_GAME) }).then(function(){ setBusy(false,''); closeSheet(); }).catch(function(){ setBusy(false,''); showToast('Erreur.'); });
 }
 function handleLeaveRoom(){
+  /* Partir efface le PIN de l'URL (goHome) : pour revenir il faut le QR, le lien
+     ou la liste des parties en cours. Ça ne vaut pas un départ sur un appui de
+     travers, maintenant que le bouton est dans la barre du haut du salon. */
+  if (!confirm('Quitter la partie ?')) return;
   /* L'hôte qui s'en va de lui-même passe la main immédiatement, plutôt que de
      laisser les autres attendre les 45s du battement de cœur. */
   if (roomRef && myKey && myKey === state.hostKey){
