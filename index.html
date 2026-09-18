@@ -296,9 +296,17 @@ textarea.field{resize:vertical;font-family:var(--font-mono);font-size:16px;line-
   background:var(--paper-raised);display:flex;align-items:center;justify-content:center;box-shadow:5px 5px 0 var(--ink);}
 .countdown-number{font-family:var(--font-display);font-size:3.6rem;font-weight:700;color:var(--ink);line-height:1;}
 .countdown-number.pulse{animation:popIn .3s cubic-bezier(.34,1.56,.64,1);}
-.answer-list{display:flex;flex-direction:column;margin-top:8px;border-radius:14px;overflow:hidden;
+/* `flex-shrink:0` est vital, sur la carte comme sur ses lignes. C'est un enfant
+   direct de `.answer-scroll`, qui est un conteneur flex en colonne : par défaut
+   un item flex se laisse écraser au lieu de déborder. Avec 8 catégories aux
+   libellés longs, la carte était comprimée de 35px, son `overflow:hidden`
+   (qui sert au rayon des coins) rognait la dernière ligne — et comme rien ne
+   débordait, `scrollHeight == clientHeight` : aucun défilement possible, la
+   catégorie devenait tout simplement inatteignable. À 0, la carte garde sa
+   hauteur, déborde, et `.answer-scroll` redevient défilable. */
+.answer-list{display:flex;flex-direction:column;flex-shrink:0;margin-top:8px;border-radius:14px;overflow:hidden;
   background:var(--paper-raised);border:1.5px solid var(--line-strong);}
-.answer-row{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--line);}
+.answer-row{display:flex;align-items:center;gap:10px;flex-shrink:0;padding:11px 16px;border-bottom:1px solid var(--line);}
 .answer-row:last-child{border-bottom:none;}
 .answer-row .cat-label{flex:0 0 38%;font-size:.72rem;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;}
 .answer-row input{flex:1;border:none;background:transparent;font-size:1.05rem;color:var(--ink);font-weight:600;
