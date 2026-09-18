@@ -133,7 +133,11 @@ Les bandes réellement libres, mesurées à 390×844 :
 | manche | 660–760 |
 | podium | 60–180, 300–760 |
 
-Sur l'écran de manche, la carte de réponses est centrée verticalement mais avec une **bande de 44px réservée en bas** (`padding-bottom` sur `.answer-scroll`) : un centrage plein ne laisse que 40px sous elle sur un écran de 844 et les griffonnages n'ont plus où aller. Et `justify-content:safe center`, pas `center` — quand les catégories débordent, un centrage normal rogne le haut de la liste et le rend inatteignable au défilement.
+Sur l'écran de manche, `.play-header` (lettre + minuteur) est remonté de 14px et `.answer-scroll` reprend exactement les mêmes 14px en `padding-top` : la zone de défilement grandit d'autant vers le haut, donc la carte centrée dedans ne bouge pas. **Les deux nombres vont par paire** — remonter l'en-tête sans compenser déplace la carte de la moitié de l'écart. Les griffonnages du haut (`chrono`, `sablier`) ont été remontés d'autant, sinon ils cessent de flanquer la tuile.
+
+Sous la carte il ne reste qu'une bande de **~70px** (62px sur un écran de 667) : les quatre dessins du bas doivent y tenir **en entier**, bords compris. Le crayon a dû être rapetissé pour ça — une boîte tournée de 14° est plus haute que sa hauteur nominale, c'est l'`getBoundingClientRect()` qui fait foi, pas le `h` de la config. Le contrôle à faire après toute retouche de mise en page ici est « haut du dessin > bas de `.answer-list` », jamais la valeur de `b` seule.
+
+Sur cet écran, la carte de réponses est centrée verticalement mais avec une **bande de 44px réservée en bas** (`padding-bottom` sur `.answer-scroll`) : un centrage plein ne laisse que 40px sous elle sur un écran de 844 et les griffonnages n'ont plus où aller. Et `justify-content:safe center`, pas `center` — quand les catégories débordent, un centrage normal rogne le haut de la liste et le rend inatteignable au défilement.
 
 Le **salon n'a aucune bande libre** : sa liste `PAPER_DOODLES.salon` est vide exprès, il ne garde que le papier réglé. Pour remesurer après un changement de mise en page, **mesurer en 2D et pas par bandes horizontales** : découper l'écran en cellules de 20px et marquer celles que recouvre un rectangle d'élément d'UI, puis imprimer la grille en ASCII. Une mesure par bandes déclare « occupée » une ligne traversée par un seul élément central et fait rater les bords libres — c'est comme ça que les flancs de la lettre, sur l'écran de manche, étaient passés inaperçus.
 
