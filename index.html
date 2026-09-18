@@ -74,8 +74,6 @@ body{margin:0;background-color:var(--paper);background-image:radial-gradient(var
 .icon{width:18px;height:18px;flex-shrink:0;display:inline-block;vertical-align:-.15em;}
 #app-shell{position:relative;height:100dvh;height:100vh;max-width:480px;margin:0 auto;display:flex;flex-direction:column;
   background:var(--paper);overflow:hidden;}
-#app-shell::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;z-index:2;
-  background:linear-gradient(90deg,var(--accent),var(--accent-2));}
 /* Fond « page de cahier ». Les lignes sont **dessinées** (dégradés répétés) et
    non photographiées : elles restent droites, se recolorent avec le thème, et
    surtout elles s'adaptent à n'importe quelle hauteur d'écran. Les griffonnages,
@@ -108,7 +106,6 @@ body{margin:0;background-color:var(--paper);background-image:radial-gradient(var
   --doodle-ink:rgba(244,236,217,.34);}
 @media (min-width:560px){
   #app-shell{margin:22px auto;height:calc(100dvh - 44px);border-radius:20px;box-shadow:var(--shadow-md);border:1.5px solid var(--line);}
-  #app-shell::before{border-radius:20px 20px 0 0;}
 }
 .app-bar{position:relative;z-index:1;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:calc(var(--safe-top) + 16px) 18px 8px;}
 /* flex:1 pour que le titre garde sa place quel que soit le nombre de boutons visibles :
@@ -1890,8 +1887,9 @@ function preloadDoodles(bg, cb){
     img.src = '/bg/d/' + d.n + '.png';
   });
 }
-/* Les autres écrans sont préchargés une fois l'app affichée : 140 Ko en tout,
-   et le changement de fond en cours de partie devient instantané. */
+/* Les autres écrans sont préchargés une fois l'app affichée : ~65 Ko (83 Ko de
+   masques en tout, dont 20 déjà pris par l'accueil), et le changement de fond en
+   cours de partie devient instantané. */
 function preloadOtherDoodles(){
   Object.keys(PAPER_DOODLES).forEach(function(bg){
     if (bg === 'accueil') return;

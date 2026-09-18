@@ -116,7 +116,7 @@ Les **règles du match** (nombre de manches, durée) sont affichées en deux pas
 Le fond est en deux morceaux, et c'est délibéré :
 
 - **Le papier réglé est dessiné en CSS** (`.paper-doodles`, deux dégradés : la marge rouge et un `repeating-linear-gradient` pour les lignes). Il ne coûte rien, reste droit, se recolore avec le thème et s'adapte à n'importe quelle hauteur d'écran.
-- **Les griffonnages sont 26 masques** dans `bg/d/` (82 Ko au total), détourés des images générées par ChatGPT. Ce sont des PNG en niveaux de gris + alpha, posés en `mask-image` sur un `<span>` dont la `background-color` est `--doodle-ink` : **un seul fichier sert aux deux thèmes**, seule la couleur change — bic bleu sur le papier clair, crème sur la page sombre (le bleu y virait au terne, la craie sur ardoise marche bien mieux).
+- **Les griffonnages sont 26 masques** dans `bg/d/` (83 Ko au total, dont 20 Ko pour le seul écran d'accueil). **Sept d'entre eux ne sont placés nulle part** (`ballon`, `bonhomme`, `cartable`, `chaise`, `cloche`, `de`, `horloge`, 28 Ko) : ils sont en réserve, pas oubliés — le salon n'a aucune bande libre et les autres écrans sont pleins. Ils ne sont pas préchargés non plus, `preloadOtherDoodles` ne parcourt que `PAPER_DOODLES`. Ne les supprime pas en croyant à des fichiers morts, détourés des images générées par ChatGPT. Ce sont des PNG en niveaux de gris + alpha, posés en `mask-image` sur un `<span>` dont la `background-color` est `--doodle-ink` : **un seul fichier sert aux deux thèmes**, seule la couleur change — bic bleu sur le papier clair, crème sur la page sombre (le bleu y virait au terne, la craie sur ardoise marche bien mieux).
 
 Ils ont d'abord été intégrés comme huit images de fond pleine page (une par écran et par thème, 273 Ko). Ça ne marchait pas, pour une raison qui vaut d'être retenue : **une composition figée ne connaît pas la mise en page**. Le brief de génération disait « dessins dans les coins, centre vide », alors que l'app met son contenu au centre et son châssis dans les coins — donc les dessins tombaient sous le bandeau et les boutons pendant que le milieu restait désespérément vide. Et une image calée sur un écran de 844pt tombe à côté sur un téléphone plus haut.
 
@@ -156,6 +156,8 @@ Le texte posé à même le fond est protégé par un **halo de papier** (`text-s
 Ne remets pas de fondu échelonné (papier puis encre) : **le splash est opaque** (`background:var(--paper)`), donc un fondu joué dessous ne se voit pas, et ce qui dépasse après son effacement se lit comme un défaut de chargement. Le `transition:opacity .4s` qui reste sur `.paper-doodles` ne sert que de filet pour la sortie par plafond ; il est coupé en `prefers-reduced-motion`.
 
 ## Points d'attention connus
+
+- **Pas de liseré en haut du shell.** `#app-shell::before` portait un dégradé brique→moutarde de 4px ; il a été retiré (avec sa règle d'arrondi dans le `@media (min-width:560px)`) pour laisser la page de cahier monter jusqu'au bord. Si tu remets un `::before` sur `#app-shell`, pense à cet arrondi sur grand écran, sinon il déborde des coins.
 
 - **Onglets en arrière-plan** : les navigateurs mobiles peuvent throttle `setInterval` quand l'onglet n'est pas au premier plan, ce qui peut retarder ou empêcher l'auto-soumission des réponses. Double filet de sécurité déjà en place : un listener `visibilitychange` relance `tick()` au retour au premier plan, ET `submitMyAnswers()` est aussi appelé directement depuis le callback du listener Firebase temps réel (`roomSnapshotHandler`), pas uniquement depuis le timer local. Si tu touches à cette logique, garde les deux déclencheurs.
 - **Identité joueur** = `localStorage` par appareil/navigateur (`pb_identity_<pin>`), pas d'authentification réelle. Changer de navigateur/appareil = nouveau joueur dans la même partie.
@@ -205,7 +207,15 @@ Pas de suite de tests dans le repo, mais deux techniques qui marchent bien et qu
 
 21. Revue de la banque : catégories trop ouvertes retirées (« Ce qui coûte cher », « Objet », « Nourriture »…), remplacées par des catégories bornées et vérifiables
 
-22. Fonds « page de cahier » griffonnée au bic, une image par écran et par thème (`bg/`, WebP, couche `::after` atténuée et masquée)
+22. Fonds « page de cahier » griffonnée au bic — d'abord huit images pleine page (une par écran et par thème), approche **abandonnée** : une compo figée ignore la mise en page, les dessins tombaient sous le châssis et le centre restait vide
+
+23. Fonds refaits en deux morceaux : réglage tracé en CSS, et 26 griffonnages détourés des images (`bg/d/`, masques recolorés par thème) placés à la main écran par écran, dans les bandes que l'UI laisse libres
+
+24. Calque de fond monté **pendant** l'écran de lancement (préchargement des masques, le splash attend) au lieu d'apparaître après en ordre dispersé
+
+25. Salon : bouton « Quitter » dans la barre du haut avec confirmation, bouton « Paramètres » retiré (les pastilles de règles ouvrent la même feuille), pastilles de règles sur fond plein
+
+26. Griffonnages ancrés sur les safe areas (`calc(var(--safe-top) + …)`), correction automatique coupée dans les champs de réponse, et liseré dégradé du bandeau retiré
 
 ## Pistes non traitées
 

@@ -44,10 +44,10 @@ La base Firebase utilisée est celle de prod (projet `petit-bac-c24bf`) — test
 
 ## Déroulé d'une partie
 
-1. **Accueil** — écran de lancement animé (les tuiles PETIT BAC tombent une à une), puis deux actions : créer une partie, ou rejoindre depuis la liste des parties en cours. Un bloc de statistiques locales (manches jouées, record, dernière lettre) apparaît une fois qu'on a joué. L'avatar en haut à droite ouvre le profil.
+1. **Accueil** — écran de lancement animé (les tuiles PETIT BAC tombent une à une). Il reste affiché le temps que la page de cahier et ses griffonnages soient prêts, pour que le rideau se lève sur un écran complet plutôt que sur des dessins qui se posent un à un. Puis deux actions : créer une partie, ou rejoindre depuis la liste des parties en cours. Un bloc de statistiques locales (manches jouées, record, dernière lettre) apparaît une fois qu'on a joué. L'avatar en haut à droite ouvre le profil.
 2. **Profil** — avatar (emoji + couleur) et prénom configurés une fois pour toutes, depuis l'avatar du bandeau : ensuite, créer ou rejoindre une partie se fait en un geste, sans repasser par un formulaire. Le profil est stocké sur l'appareil uniquement, rien n'est publié.
 3. **Création** — la partie obtient un code à 4 chiffres, qui sert de clé Firebase mais n'est jamais affiché : on rejoint par QR code, par lien (`?pin=XXXX`) ou depuis la liste.
-4. **Salle d'attente** — les joueurs présents en tête, une case « + » qui ouvre le QR code et le partage de lien, les règles du match (manches, durée) en un coup d'œil, et les huit catégories de la partie, chacune avec son picto. Elles sont **tirées au sort** à la création, dans une banque groupée par famille (classiques, lieux, culture, nourriture, quotidien, nature, fun) pour que deux parties ne se ressemblent pas. Seul l'hôte lance la manche. Les réglages (catégories — à réécrire à la main ou à retirer au sort —, durée 60/90/120s — 2 min par défaut, nombre de manches 3/5/10/∞ — 3 par défaut) sont accessibles juste au-dessus du bouton de lancement.
+4. **Salle d'attente** — les joueurs présents en tête, une case « + » qui ouvre le QR code et le partage de lien, les règles du match (manches, durée) en un coup d'œil, et les huit catégories de la partie, chacune avec son picto. Elles sont **tirées au sort** à la création, dans une banque de 51 catégories groupées en sept familles (classiques, lieux, culture, nourriture, quotidien, nature, fun) pour que deux parties ne se ressemblent pas. Seul l'hôte lance la manche, et seul lui peut retirer les catégories au sort. Les deux pastilles de règles sont cliquables : elles ouvrent les réglages (catégories à réécrire à la main, durée 60/90/120s — 2 min par défaut, nombre de manches 3/5/10/∞ — 3 par défaut). Un bouton en haut à droite permet de quitter la partie.
 5. **Manche** — décompte de 3s, puis la lettre s'affiche à gauche du minuteur. Le premier qui clique "J'ai fini" déclenche 5s de grâce pour les autres, après quoi la manche se termine pour tout le monde.
 6. **Validation** — catégorie par catégorie, synchronisée : tout le monde voit la même au même moment. Chacun peut refuser les réponses qui ne vont pas (elles comptent par défaut), mais c'est l'hôte qui fait avancer le groupe d'une catégorie à l'autre.
 7. **Podium** — roulement de tambour, puis révélation par paliers : 3e, 2e, puis la 1re place sous un projecteur avec des confettis, et enfin le reste du classement.
@@ -60,7 +60,7 @@ La base Firebase utilisée est celle de prod (projet `petit-bac-c24bf`) — test
 - Les **fautes de frappe** comptent comme des doublons : "Hongrie" et "Hongrir" donnent 1 pt chacun et non 2 réponses uniques (distance de Levenshtein, seuil proportionnel à la longueur du mot)
 - Les **articles** en tête de réponse sont ignorés : "Une Ferrari" et "Ferrari" sont le même mot, et c'est le F qui compte pour la lettre du tour
 - Les **abréviations** comptent comme des doublons : "Foot" et "Football" donnent 1 pt chacun. "Football américain" reste une réponse à part, un mot en plus n'est pas une abréviation
-- Une lettre déjà tirée ne peut pas revenir avant **13 tirages**, y compris après un "Rejouer"
+- Une lettre déjà tirée ne peut pas revenir avant **13 tirages**, y compris après un "Rejouer" ou une remise à zéro des scores. Cette mémoire vit dans la partie : une partie créée de zéro repart d'une ardoise vierge
 - Les catégories sont tirées au sort à la création de la partie et à chaque retour au salon, avec au plus deux catégories de la même famille — et restent modifiables dans les réglages avant le lancement
 
 ## Autres comportements
@@ -68,6 +68,7 @@ La base Firebase utilisée est celle de prod (projet `petit-bac-c24bf`) — test
 - Nettoyage automatique : une partie sans activité depuis 3 min se ferme toute seule
 - Si l'hôte s'en va, un autre joueur reprend le rôle automatiquement : immédiatement s'il clique « Quitter la partie », sous 90s s'il ferme simplement son onglet
 - Les réponses sont sauvegardées en cours de frappe : recharger l'onglet en pleine manche ne les perd pas
+- La correction automatique et le correcteur orthographique sont désactivés dans les champs de réponse : sur un jeu de mots, le téléphone réécrivait les noms propres entre la frappe et l'envoi
 - Auto-soumission des réponses à la fin du temps, même si l'onglet est passé en arrière-plan
 
 ## Limitations connues
