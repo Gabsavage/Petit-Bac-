@@ -1443,7 +1443,7 @@ function renderPlayingContent(s){
   html += '<div class="answer-scroll"><div class="answer-list">' + s.categories.map(function(cat, idx){
     const val = localAnswers[idx] || '';
     const dis = locked ? 'disabled' : '';
-    return '<div class="answer-row"><span class="cat-label">'+esc(cat)+'</span><input type="text" class="answer-input" data-cat="'+idx+'" '+dis+' value="'+esc(val)+'" autocomplete="off" placeholder="…"></div>';
+    return '<div class="answer-row"><span class="cat-label">'+esc(cat)+'</span><input type="text" class="answer-input" data-cat="'+idx+'" '+dis+' value="'+esc(val)+'" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="…"></div>';
   }).join('') + '</div></div></div>';
   return html;
 }
@@ -1836,9 +1836,16 @@ function renderDoodles(bg){
   const list = PAPER_DOODLES[bg] || [];
   return list.map(function(d){
     let css = '';
-    if (d.b !== undefined) css += 'bottom:' + d.b + 'px;';
-    else if (d.c !== undefined) css += 'top:calc(50% + ' + d.c + 'px);';
-    else css += 'top:' + d.t + 'px;';
+    /* Les ancres passent par les encoches. Le bandeau descend de var(--safe-top)
+       et la barre du bas remonte de var(--safe-bottom), donc toute l'UI glisse
+       sur un téléphone encoché — alors que le calque, lui, couvre le shell entier.
+       Sans ces calc(), un dessin calé « à 140px du haut » se retrouvait 60px trop
+       haut par rapport au contenu, et ça ne se voyait sur aucun navigateur de
+       bureau où les insets valent 0. Le centre bouge de la moitié de l'écart
+       entre les deux insets, pour la même raison. */
+    if (d.b !== undefined) css += 'bottom:calc(var(--safe-bottom) + ' + d.b + 'px);';
+    else if (d.c !== undefined) css += 'top:calc(50% + (var(--safe-top) - var(--safe-bottom)) / 2 + ' + d.c + 'px);';
+    else css += 'top:calc(var(--safe-top) + ' + d.t + 'px);';
     css += (d.x !== undefined ? 'left:' + d.x + ';' : 'right:' + d.rx + ';');
     css += 'width:' + d.w + 'px;height:' + d.h + 'px;';
     if (d.r) css += 'transform:rotate(' + d.r + 'deg);';
